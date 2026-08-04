@@ -1,0 +1,131 @@
+import { supabase } from "../lib/supabaseClient";
+import { formatDate, formatTime } from "../utils/datetime";
+
+// No backend cron in this app — expiration is swept client-side whenever
+// reservations or devices are read, so it's always caught up to date
+// regardless of which page the user opens first. A reservation is valid
+// through the whole of its reserved_until day, so it only expires once
+// we're a full day past that (local) midnight. Runs as a single atomic RPC
+// (see expire_overdue_reservations in schema.sql) so a batch of reservations
+// can't end up expired without their devices being freed, or vice versa.
+export async function expireOverdueReservations() {
+  const { error } = await supabase.rpc("expire_overdue_reservations");
+  if (error) throw error;
+}
+
+// Converted and Expired reservations already live on elsewhere (Sales
+// History, or the device just going back to Available) — keeping them here
+// too would just be a stale duplicate.
+export async function getReservedDevices() {
+  await expireOverdueReservations();
+
+  const { data, error } = await supabase
+    .from("reservations")
+    .select(
+      `
+    id,
+    customer_name,
+    customer_phone,
+    reserved_until,
+    status,
+    total_price,
+    down_payment,
+    created_at,
+    devices:device_id ( id, batch_code, device_name, category, storage, color ),
+    profiles:salesperson_id ( name )
+  `
+    )
+    .neq("status", "Converted")
+    .neq("status", "Expired");
+
+  if (error) throw error;
+
+  const now = new Date();
+
+  return data
+    .slice()
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .map((r) => {
+      const reservedUntilDate = new Date(r.reserved_until);
+      const daysLeft = Math.ceil((reservedUntilDate - now) / (1000 * 60 * 60 * 24));
+      return {
+        id: r.id,
+        deviceId: r.devices?.id,
+        batchCode: r.devices?.batch_code,
+        dateReserved: formatDate(r.created_at),
+        time: formatTime(r.created_at),
+        customer: r.customer_name,
+        phone: r.customer_phone,
+        salesperson: r.profiles?.name,
+        device: r.devices?.device_name,
+        category: r.devices?.category,
+        storage: r.devices?.storage,
+        color: r.devices?.color,
+        reservedUntil: formatDate(r.reserved_until),
+        daysLeft,
+        status: r.status,
+        totalPrice: r.total_price,
+        downPayment: r.down_payment,
+      };
+    });
+}
+
+export async function createReservation({
+  deviceId,
+  customerName,
+  customerPhone,
+  reservedUntil,
+  totalPrice,
+  downPayment,
+}) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const { error } = await supabase.rpc("create_reservation", {
+    p_device_id: deviceId,
+    p_customer_name: customerName,
+    p_customer_phone: customerPhone || null,
+    p_salesperson_id: session?.user?.id || null,
+    // A date-only value parses as midnight UTC, which prints as 8 AM in
+    // Manila and would make the expiration sweep cut the day short.
+    p_reserved_until: new Date(`${reservedUntil}T00:00:00`).toISOString(),
+    p_total_price: totalPrice,
+    p_down_payment: downPayment || 0,
+  });
+  if (error) throw error;
+}
+
+export async function cancelReservation(reservationId, deviceId) {
+  const { error } = await supabase.rpc("cancel_reservation", {
+    p_reservation_id: reservationId,
+    p_device_id: deviceId,
+  });
+  if (error) throw error;
+}
+
+export async function convertReservationToSale(
+  reservationId,
+  { deviceId, customerName, customerPhone, totalPrice, downPayment, paymentMethod, referenceNumber }
+) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const notes = downPayment
+    ? `Down payment of ₱${Number(downPayment).toLocaleString()} already collected at reservation.`
+    : null;
+
+  const { error } = await supabase.rpc("convert_reservation_to_sale", {
+    p_reservation_id: reservationId,
+    p_device_id: deviceId,
+    p_customer_name: customerName,
+    p_customer_phone: customerPhone || null,
+    p_total_price: totalPrice,
+    p_payment_method: paymentMethod,
+    p_reference_number: referenceNumber || null,
+    p_notes: notes,
+    p_salesperson_id: session?.user?.id || null,
+  });
+  if (error) throw error;
+}

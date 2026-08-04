@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* Printed reports (Financial, Reports "Print Report") — portrait with
+   tight margins, and a smaller base size so long tables paginate less. */
+@media print {
+  @page {
+    size: portrait;
+    margin: 10mm;
+  }
+
+  body {
+    font-size: 11px;
+  }
+
+  /* overflow-x-auto is for on-screen horizontal scrolling — on paper
+     there's no scrollbar, so it just clips anything past the viewport
+     width instead of shrinking the table to fit. Letting it flow removes
+     the clip; the table's own 100% width then fits the page. */
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  table {
+    width: 100% !important;
+    table-layout: auto;
+  }
+
+  th,
+  td {
+    padding: 4px 6px !important;
+    font-size: 10px !important;
+  }
+}
