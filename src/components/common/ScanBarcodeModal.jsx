@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Camera, AlertTriangle } from "lucide-react";
-import { BrowserMultiFormatReader, BarcodeFormat } from "@zxing/browser";
+import { BrowserMultiFormatReader, BrowserCodeReader, BarcodeFormat } from "@zxing/browser";
 
 // Opens the device camera (rear-facing on phones, webcam on desktop — both
 // are just "a camera" to getUserMedia, which decodeFromVideoDevice already
@@ -48,7 +48,16 @@ function ScanBarcodeModal({ onScanned, onClose }) {
 
     return () => {
       cancelled = true;
+      // controlsRef only gets populated once the first decode callback
+      // fires — if the modal closes before that (fast close, permission
+      // denial, or navigating away mid-getUserMedia), controlsRef.current
+      // would still be null and the camera stream would keep running with
+      // no way to reach it through the local ref. releaseAllStreams stops
+      // every stream the library has opened regardless of that timing —
+      // safe here since this app never has more than one scan modal open
+      // at once.
       controlsRef.current?.stop();
+      BrowserCodeReader.releaseAllStreams();
     };
   }, []);
 

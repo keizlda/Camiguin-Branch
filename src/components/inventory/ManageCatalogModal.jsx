@@ -311,6 +311,14 @@ function CategoriesTab({ onChanged }) {
 
   const handleAdd = async () => {
     if (!newName.trim() || !newBrand.trim() || !newPrefix.trim()) return;
+    // Letters only — batch codes are built as <PREFIX><MMDDYY>-<seq>, so a
+    // prefix containing digits could visually run into the date that
+    // immediately follows it, and a scanned/typed code would be genuinely
+    // ambiguous to re-split back into prefix vs. date by eye.
+    if (!/^[A-Z]{1,4}$/.test(newPrefix.trim().toUpperCase())) {
+      setError("Prefix must be 1-4 letters (A-Z), no numbers or symbols.");
+      return;
+    }
     setError("");
     setBusy(true);
     try {

@@ -62,14 +62,3 @@
     break-after: page;
   }
 }
-
-/* Printed sales receipt (New Sale, right after a sale / Sales History
-   "Print Receipt") — narrow, centered column so it reads like an actual
-   receipt rather than stretching item lines across a full sheet of paper. */
-@media print {
-  .receipt-print {
-    max-width: 300px;
-    margin: 0 auto;
-    font-size: 11px;
-  }
-}

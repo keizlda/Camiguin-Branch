@@ -165,7 +165,9 @@ export async function processSale({
 
   const total = cartItems.reduce((sum, item) => sum + item.price, 0);
 
-  const { error } = await supabase.rpc("process_sale", {
+  // process_sale returns the new sale's id — used to print a receipt
+  // (batch code barcode) right after checkout without a second round trip.
+  const { data, error } = await supabase.rpc("process_sale", {
     p_customer_name: customerName || null,
     p_salesperson_id: session?.user?.id || null,
     p_payment_method: paymentMethod,
@@ -178,6 +180,7 @@ export async function processSale({
     p_force_bulk: forceBulk ?? false,
   });
   if (error) throw error;
+  return data;
 }
 
 // Most recent sale date for a device, if it's ever been sold — used by

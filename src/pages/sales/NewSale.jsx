@@ -269,7 +269,7 @@ function NewSale() {
     }
     setSubmitting(true);
     try {
-      await processSale({
+      const saleId = await processSale({
         customerName: customerSearch.trim(),
         paymentMethod: payment,
         referenceNumber,
@@ -284,13 +284,16 @@ function NewSale() {
       // Built from what's already in hand (cart + form state) rather than
       // re-querying — every field the receipt needs was already entered
       // right here, so there's no need for a round trip back to the DB.
+      // saleId comes straight from process_sale's own return value.
       setLastReceipt({
+        saleId,
         soldAt: new Date().toISOString(),
         customerName: customerSearch.trim() || null,
         customerPhone: null,
         salesperson: profile?.name || null,
         paymentMethod: payment,
         paymentStatus: isBulk ? "Pending" : "Paid",
+        orderType: isBulk ? "Bulk" : "Regular",
         referenceNumber,
         notes: notes.trim() || null,
         downPayment: FINANCING_METHODS.includes(payment) && downPayment !== "" ? Number(downPayment) : null,

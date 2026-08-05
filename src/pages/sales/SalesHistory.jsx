@@ -86,12 +86,14 @@ function SalesHistory() {
     setOpenMenu(null);
     const allUnits = salesHistory.filter((s) => s.saleId === row.saleId);
     setReceiptData({
+      saleId: row.saleId,
       soldAt: row.soldAt,
       customerName: row.customer || null,
       customerPhone: row.phone || null,
       salesperson: row.salesperson || null,
       paymentMethod: row.payment,
       paymentStatus: row.paymentStatus,
+      orderType: row.orderType,
       referenceNumber: row.referenceNumber,
       notes: row.notes,
       downPayment: row.downPayment,

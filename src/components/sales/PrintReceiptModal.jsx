@@ -1,25 +1,56 @@
 import { X, Printer } from "lucide-react";
 import { formatDate, formatTime } from "../../utils/datetime";
+import Barcode from "../common/Barcode";
+
+// Placeholder business info — user confirmed (2026-08-06) to ship these as
+// placeholders for now rather than blocking on real values. Swap these for
+// the real address/phone/return policy whenever they're available; nothing
+// else about the receipt depends on them.
+const STORE_ADDRESS = ["Claro M. Recto Ave., Lapasan", "Cagayan de Oro City, 9000"];
+const STORE_PHONE = "0912 345 6789";
+const RETURN_POLICY = "No returns after 7 days.";
 
 const peso = (n) => "₱" + (Number(n) || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// receipt shape: { soldAt, customerName, customerPhone, salesperson,
-// paymentMethod, paymentStatus, referenceNumber, notes, downPayment,
-// balance, items: [{ device, storage, color, batchCode, price }] }
+const paymentStatusPillClass = {
+  Pending: "bg-amber-100 text-amber-800",
+  Paid: "bg-green-100 text-green-800",
+};
+
+// Not a stored/sequential invoice number — this app's sales are identified
+// by UUID, not a counter. Derived entirely from real fields (the sale's own
+// date + a slice of its real id) purely for a shorter, receipt-friendly
+// reference and barcode value, not a fabricated fact.
+function formatSaleNumber(soldAt, saleId) {
+  if (!soldAt || !saleId) return null;
+  const d = new Date(soldAt);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const yy = String(d.getFullYear()).slice(-2);
+  const suffix = saleId.replace(/-/g, "").slice(-6).toUpperCase();
+  return `SALE-${mm}${dd}${yy}-${suffix}`;
+}
+
+// receipt shape: { saleId, soldAt, customerName, customerPhone, salesperson,
+// paymentMethod, paymentStatus, orderType, referenceNumber, notes,
+// downPayment, balance, items: [{ device, storage, color, batchCode, price }] }
 //
-// Same dedicated-print-stylesheet + window.print() pattern as Reports/
-// Labels: the on-screen preview is print:hidden, and .receipt-print (styled
-// in index.css) is hidden on screen and only shown when printing, in a
-// narrow receipt-width column rather than a full-width page.
+// The styled receipt below is shared as-is between the on-screen preview and
+// the printed page — only the surrounding modal chrome (header, backdrop,
+// Close/Print buttons) is print:hidden, restyled with print: overrides
+// rather than hidden outright, so nothing in its ancestor chain ever gets
+// display:none (which would hide the receipt content too, since it's a
+// descendant, not a sibling — see the label/receipt print bug this project
+// already hit once with a naive print:hidden wrapper).
 function PrintReceiptModal({ receipt, onClose }) {
   const subtotal = receipt.items.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
+  const saleNumber = formatSaleNumber(receipt.soldAt, receipt.saleId);
   const handlePrint = () => window.print();
 
   return (
-    <>
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 print:hidden">
-      <div className="bg-white rounded-xl w-full max-w-md shadow-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 print:static print:inset-auto print:block print:bg-transparent print:p-0 print:z-auto">
+      <div className="bg-white rounded-xl w-full max-w-md shadow-xl print:shadow-none print:rounded-none print:max-w-none print:w-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 print:hidden">
           <div className="flex items-center gap-2">
             <Printer size={16} className="text-blue-500" />
             <p className="font-semibold text-gray-800">Print Receipt</p>
@@ -29,26 +60,154 @@ function PrintReceiptModal({ receipt, onClose }) {
           </button>
         </div>
 
-        <div className="px-5 py-4 max-h-[60vh] overflow-y-auto text-sm">
-          <p className="text-xs text-gray-400 mb-3">
-            {receipt.items.length} unit{receipt.items.length === 1 ? "" : "s"} · {peso(subtotal)} total
-          </p>
-          <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
+        {/* The receipt itself — identical on screen and on paper */}
+        <div
+          className="mx-auto w-[320px] max-w-full p-5 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
+          style={{ fontFamily: "'Courier New', Courier, monospace" }}
+        >
+          <div className="text-center">
+            <div className="w-11 h-11 rounded-full bg-gray-900 text-white flex items-center justify-center font-bold text-sm mx-auto mb-1.5">
+              MG
+            </div>
+            <p className="text-sm font-bold tracking-wide">MARK GADGETS CGN</p>
+            <p className="text-[10px] text-gray-500 tracking-wide">POS &amp; INVENTORY SYSTEM</p>
+            <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">
+              {STORE_ADDRESS.map((line) => (
+                <span key={line}>
+                  {line}
+                  <br />
+                </span>
+              ))}
+              {STORE_PHONE}
+            </p>
+          </div>
+
+          <div className="border-t border-dashed border-gray-400 my-2.5" />
+
+          <div className="space-y-0.5">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Date:</span>
+              <span>
+                {formatDate(receipt.soldAt)} {formatTime(receipt.soldAt)}
+              </span>
+            </div>
+            {receipt.salesperson && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Salesperson:</span>
+                <span>{receipt.salesperson}</span>
+              </div>
+            )}
+            {receipt.customerName && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Customer:</span>
+                <span>{receipt.customerName}</span>
+              </div>
+            )}
+            {receipt.customerPhone && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Contact:</span>
+                <span>{receipt.customerPhone}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-dashed border-gray-400 my-2.5" />
+
+          <div>
             {receipt.items.map((item, i) => (
-              <div key={i} className="px-3 py-2 flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-gray-800 font-medium">{item.device}</p>
-                  <p className="text-xs text-gray-400">
-                    {[item.storage, item.color, item.batchCode].filter(Boolean).join(" · ")}
-                  </p>
+              <div key={i} className="mb-2">
+                <p className="font-bold">{item.device}</p>
+                {(item.storage || item.color) && (
+                  <p className="text-gray-500">{[item.storage, item.color].filter(Boolean).join(" · ")}</p>
+                )}
+                {item.batchCode && <p className="text-gray-500">Batch: {item.batchCode}</p>}
+                <div className="flex justify-between mt-0.5">
+                  <span>1 x {peso(item.price)}</span>
+                  <span>{peso(item.price)}</span>
                 </div>
-                <p className="text-gray-700 flex-shrink-0">{peso(item.price)}</p>
               </div>
             ))}
           </div>
+
+          <div className="border-t border-dashed border-gray-400 my-2.5" />
+
+          <div className="space-y-0.5">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Subtotal</span>
+              <span>{peso(subtotal)}</span>
+            </div>
+            <div className="flex justify-between font-bold text-sm border-t border-gray-900 pt-1.5 mt-1">
+              <span>TOTAL</span>
+              <span>{peso(subtotal)}</span>
+            </div>
+          </div>
+
+          <div className="border-t border-dashed border-gray-400 my-2.5" />
+
+          <div className="space-y-0.5">
+            {receipt.orderType && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Order Type:</span>
+                <span>{receipt.orderType === "Bulk" ? "Bulk Order" : "Regular"}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-gray-500">Payment Method:</span>
+              <span>{receipt.paymentMethod}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Payment Status:</span>
+              <span
+                className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded tracking-wide ${
+                  paymentStatusPillClass[receipt.paymentStatus] || "bg-gray-100 text-gray-700"
+                }`}
+              >
+                {receipt.paymentStatus?.toUpperCase()}
+              </span>
+            </div>
+            {receipt.referenceNumber && receipt.referenceNumber !== "N/A" && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Reference #:</span>
+                <span>{receipt.referenceNumber}</span>
+              </div>
+            )}
+            {receipt.downPayment != null && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Down Payment:</span>
+                <span>{peso(receipt.downPayment)}</span>
+              </div>
+            )}
+            {receipt.balance != null && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Balance:</span>
+                <span>{peso(receipt.balance)}</span>
+              </div>
+            )}
+          </div>
+
+          {saleNumber && (
+            <>
+              <div className="border-t border-dashed border-gray-400 my-2.5" />
+              <div className="text-center">
+                <Barcode value={saleNumber} height={30} className="mx-auto" />
+                <p className="text-[9px] tracking-widest mt-0.5">{saleNumber}</p>
+              </div>
+            </>
+          )}
+
+          <p className="text-center font-bold mt-2.5">Thank you for your business!</p>
+          <p className="text-center text-[10px] text-gray-500 mt-3 leading-relaxed">
+            {RETURN_POLICY}
+            <br />
+            Please keep this receipt for warranty and return purposes.
+            <br />
+            &copy; {new Date().getFullYear()} Mark Gadgets CGN. All rights reserved.
+          </p>
+
+          {receipt.notes && <p className="text-[10px] text-gray-500 mt-2 pt-2 border-t border-dashed border-gray-400">{receipt.notes}</p>}
         </div>
 
-        <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3">
+        <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 print:hidden">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
             Close
           </button>
@@ -62,88 +221,6 @@ function PrintReceiptModal({ receipt, onClose }) {
         </div>
       </div>
     </div>
-
-    {/* Print-only — invisible on screen, shown only when printing */}
-    <div className="hidden print:block receipt-print">
-      <div className="text-center mb-3">
-        <p className="font-bold text-base">Mark Gadgets CGN</p>
-        <p className="text-xs">
-          {formatDate(receipt.soldAt)} {formatTime(receipt.soldAt)}
-        </p>
-      </div>
-
-      {(receipt.customerName || receipt.customerPhone) && (
-        <div className="text-xs mb-2 border-t border-b border-dashed border-gray-400 py-1.5">
-          {receipt.customerName && <p>Customer: {receipt.customerName}</p>}
-          {receipt.customerPhone && <p>Phone: {receipt.customerPhone}</p>}
-        </div>
-      )}
-
-      <div className="text-xs border-b border-dashed border-gray-400 pb-1.5 mb-1.5">
-        {receipt.items.map((item, i) => (
-          <div key={i} className="flex justify-between gap-2 py-0.5">
-            <div>
-              <p>{item.device}</p>
-              <p className="text-[10px]">
-                {[item.storage, item.color, item.batchCode].filter(Boolean).join(" · ")}
-              </p>
-            </div>
-            <p className="flex-shrink-0">{peso(item.price)}</p>
-          </div>
-        ))}
-      </div>
-
-      <div className="text-xs space-y-0.5">
-        <div className="flex justify-between">
-          <span>Subtotal</span>
-          <span>{peso(subtotal)}</span>
-        </div>
-        <div className="flex justify-between font-bold text-sm border-t border-dashed border-gray-400 pt-1 mt-1">
-          <span>Total</span>
-          <span>{peso(subtotal)}</span>
-        </div>
-      </div>
-
-      <div className="text-xs mt-2 pt-1.5 border-t border-dashed border-gray-400 space-y-0.5">
-        <div className="flex justify-between">
-          <span>Payment Method</span>
-          <span>{receipt.paymentMethod}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>Payment Status</span>
-          <span>{receipt.paymentStatus}</span>
-        </div>
-        {receipt.referenceNumber && receipt.referenceNumber !== "N/A" && (
-          <div className="flex justify-between">
-            <span>Reference #</span>
-            <span>{receipt.referenceNumber}</span>
-          </div>
-        )}
-        {receipt.downPayment != null && (
-          <div className="flex justify-between">
-            <span>Down Payment</span>
-            <span>{peso(receipt.downPayment)}</span>
-          </div>
-        )}
-        {receipt.balance != null && (
-          <div className="flex justify-between">
-            <span>Balance</span>
-            <span>{peso(receipt.balance)}</span>
-          </div>
-        )}
-        <div className="flex justify-between">
-          <span>Served by</span>
-          <span>{receipt.salesperson || "—"}</span>
-        </div>
-      </div>
-
-      {receipt.notes && (
-        <p className="text-[10px] mt-2 pt-1.5 border-t border-dashed border-gray-400">{receipt.notes}</p>
-      )}
-
-      <p className="text-center text-[10px] mt-3">Thank you!</p>
-    </div>
-    </>
   );
 }
 
