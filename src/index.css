@@ -31,3 +31,40 @@
     font-size: 10px !important;
   }
 }
+
+/* Printed device labels (Add Device / All Devices "Print Label") — a grid
+   of cut-apart cells sized for a plain printer, not a dedicated label
+   printer or a pre-cut adhesive sheet. Fixed 2in x 1in cells (4 per row on
+   a letter page) with an explicit page break every 8th cell, so a batch of
+   labels always prints as clean, predictably-sized pages instead of
+   flowing however many happen to fit. */
+@media print {
+  .label-sheet {
+    display: grid;
+    grid-template-columns: repeat(4, 2in);
+    justify-content: center;
+  }
+
+  .label-cell {
+    width: 2in;
+    height: 1in;
+    box-sizing: border-box;
+    border: 1px dashed #999;
+    break-inside: avoid;
+  }
+
+  .label-cell:nth-child(8n) {
+    break-after: page;
+  }
+}
+
+/* Printed sales receipt (New Sale, right after a sale / Sales History
+   "Print Receipt") — narrow, centered column so it reads like an actual
+   receipt rather than stretching item lines across a full sheet of paper. */
+@media print {
+  .receipt-print {
+    max-width: 300px;
+    margin: 0 auto;
+    font-size: 11px;
+  }
+}

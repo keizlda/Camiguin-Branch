@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { PackagePlus } from "lucide-react";
+import { PackagePlus, Printer } from "lucide-react";
 import InventoryStats from "../../components/inventory/InventoryStats";
 import FilterBar from "../../components/inventory/FilterBar";
 import DeviceTable from "../../components/inventory/DeviceTable";
@@ -9,6 +9,7 @@ import DeviceDetailsModal from "../../components/inventory/DeviceDetailsModal";
 import EditDeviceModal from "../../components/inventory/EditDeviceModal";
 import LogShipmentArrivalModal from "../../components/inventory/LogShipmentArrivalModal";
 import PendingShipmentsCard from "../../components/inventory/PendingShipmentsCard";
+import PrintLabelsModal from "../../components/inventory/PrintLabelsModal";
 import { getDeviceKind } from "../../utils/deviceKind";
 import { useServiceData } from "../../hooks/useServiceData";
 import { getAllDevices, getLowStockItems, deleteDevice } from "../../services/inventoryService";
@@ -59,6 +60,38 @@ function AllDevices() {
   }, [loadAllShells]);
 
   const [shipmentGroup, setShipmentGroup] = useState(null);
+
+  // Batch label printing — checked rows survive filter changes (a filter
+  // narrows what's shown, not what's still selected), so filtering down to
+  // "today" then selecting all doesn't lose earlier picks if the filter
+  // changes again before printing.
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [printDevices, setPrintDevices] = useState(null);
+
+  const handleToggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = (visibleDevices) => {
+    setSelectedIds((prev) => {
+      const allSelected = visibleDevices.every((d) => prev.has(d.id));
+      const next = new Set(prev);
+      for (const d of visibleDevices) {
+        if (allSelected) next.delete(d.id);
+        else next.add(d.id);
+      }
+      return next;
+    });
+  };
+
+  const handlePrintSelected = () => {
+    setPrintDevices(allDevices.filter((d) => selectedIds.has(d.id)));
+  };
 
   const handleShipmentLogged = () => {
     setShowLogShipment(false);
@@ -168,7 +201,13 @@ function AllDevices() {
   };
 
   return (
-    <div className="space-y-4">
+    <>
+    {/* print:hidden on this wrapper (not further out) keeps PrintLabelsModal's
+        own print-only label sheet — rendered as a true sibling below, outside
+        this div — from being hidden by an ancestor's display:none. Without
+        this, the whole page would print alongside the labels instead of
+        being suppressed. */}
+    <div className="space-y-4 print:hidden">
       <FilterBar
         filters={filters}
         setFilters={setFilters}
@@ -185,6 +224,15 @@ function AllDevices() {
         <div className="flex items-center justify-between mb-4">
           <p className="font-medium text-gray-800">Devices List</p>
           <div className="flex items-center gap-2">
+            {selectedIds.size > 0 && (
+              <button
+                onClick={handlePrintSelected}
+                className="flex items-center gap-2 text-sm text-blue-600 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-50"
+              >
+                <Printer size={14} />
+                Print Labels ({selectedIds.size})
+              </button>
+            )}
             <button
               onClick={() => setShowLogShipment(true)}
               className="flex items-center gap-2 text-sm text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50"
@@ -203,6 +251,10 @@ function AllDevices() {
             onView={setViewDevice}
             onEdit={setEditDevice}
             onDelete={handleDelete}
+            onPrintLabel={(device) => setPrintDevices([device])}
+            selectedIds={selectedIds}
+            onToggleSelect={handleToggleSelect}
+            onToggleSelectAll={handleToggleSelectAll}
           />
         )}
       </div>
@@ -228,6 +280,11 @@ function AllDevices() {
         <LogShipmentArrivalModal onClose={() => setShowLogShipment(false)} onCreated={handleShipmentLogged} />
       )}
     </div>
+
+    {printDevices && (
+      <PrintLabelsModal devices={printDevices} onClose={() => setPrintDevices(null)} />
+    )}
+    </>
   );
 }
 

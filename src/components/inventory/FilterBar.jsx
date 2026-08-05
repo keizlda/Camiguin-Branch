@@ -1,6 +1,8 @@
-import { Search, Filter } from "lucide-react";
+import { useState } from "react";
+import { Search, Filter, Camera } from "lucide-react";
 import { useServiceData } from "../../hooks/useServiceData";
 import { getDeviceCategories, getDeviceStorages, getSuppliers } from "../../services/referenceService";
+import ScanBarcodeModal from "../common/ScanBarcodeModal";
 
 function FilterBar({ filters, setFilters, onApply, onClear, kinds = [] }) {
   const deviceCategories = useServiceData(getDeviceCategories, []);
@@ -8,6 +10,7 @@ function FilterBar({ filters, setFilters, onApply, onClear, kinds = [] }) {
   const suppliers = useServiceData(getSuppliers, []);
   const statuses = ["Available", "Sold", "Reserved", "Customer Returned", "Supplier Defective", "Returned"];
   const conditions = ["Brand New", "Pre-owned"];
+  const [showScan, setShowScan] = useState(false);
 
   const update = (key, value) => setFilters({ ...filters, [key]: value });
 
@@ -18,15 +21,25 @@ function FilterBar({ filters, setFilters, onApply, onClear, kinds = [] }) {
           <label className="flex items-end min-h-[2.25rem] text-xs font-medium text-gray-500 mb-1.5">
             Search Device (Batch Code)
           </label>
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={filters.search}
-              onChange={(e) => update("search", e.target.value)}
-              placeholder="Type batch code..."
-              className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={filters.search}
+                onChange={(e) => update("search", e.target.value)}
+                placeholder="Type batch code..."
+                className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowScan(true)}
+              title="Scan a barcode into this field"
+              className="flex items-center px-3 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 flex-shrink-0"
+            >
+              <Camera size={14} />
+            </button>
           </div>
         </div>
 
@@ -142,6 +155,16 @@ function FilterBar({ filters, setFilters, onApply, onClear, kinds = [] }) {
           </button>
         </div>
       </div>
+
+      {showScan && (
+        <ScanBarcodeModal
+          onScanned={(value) => {
+            update("search", value);
+            setShowScan(false);
+          }}
+          onClose={() => setShowScan(false)}
+        />
+      )}
     </div>
   );
 }

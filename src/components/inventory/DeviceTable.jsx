@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Smartphone, Tablet, Watch, Laptop, Headphones, Wrench, MoreVertical, Eye, ChevronLeft, ChevronRight } from "lucide-react";
+import { Smartphone, Tablet, Watch, Laptop, Headphones, Wrench, MoreVertical, Eye, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { useIsAdmin } from "../../hooks/useIsAdmin";
 
 const statusStyles = {
@@ -20,7 +20,7 @@ const categoryIcon = {
   "Repair Parts": Wrench,
 };
 
-function DeviceTable({ devices, onView, onEdit, onDelete }) {
+function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selectedIds, onToggleSelect, onToggleSelectAll }) {
   const isAdmin = useIsAdmin();
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
@@ -30,12 +30,27 @@ function DeviceTable({ devices, onView, onEdit, onDelete }) {
   const start = (page - 1) * perPage;
   const paginated = devices.slice(start, start + perPage);
 
+  // Selecting "all" selects every device matching the current filters, not
+  // just what's visible on this page — so a filter-then-select-all-then-
+  // print workflow (e.g. "everything added today") covers the whole result
+  // set, not just whichever page happens to be showing.
+  const allSelected = devices.length > 0 && devices.every((d) => selectedIds.has(d.id));
+
   return (
     <div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-gray-400 border-b border-gray-100">
+              <th className="pb-2 font-medium w-8">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => onToggleSelectAll(devices)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  aria-label="Select all"
+                />
+              </th>
               <th className="pb-2 font-medium">Batch Code</th>
               <th className="pb-2 font-medium">Device</th>
               <th className="pb-2 font-medium">Category</th>
@@ -49,7 +64,7 @@ function DeviceTable({ devices, onView, onEdit, onDelete }) {
           <tbody>
             {paginated.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-8 text-center text-gray-400">
+                <td colSpan={9} className="py-8 text-center text-gray-400">
                   No devices found.
                 </td>
               </tr>
@@ -58,6 +73,15 @@ function DeviceTable({ devices, onView, onEdit, onDelete }) {
                 const Icon = categoryIcon[row.category] || Smartphone;
                 return (
                   <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
+                    <td className="py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(row.id)}
+                        onChange={() => onToggleSelect(row.id)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        aria-label={`Select ${row.batchCode}`}
+                      />
+                    </td>
                     <td className="py-3 text-gray-600">{row.batchCode}</td>
                     <td className="py-3">
                       <div className="flex items-center gap-2">
@@ -80,49 +104,62 @@ function DeviceTable({ devices, onView, onEdit, onDelete }) {
                       <p className="text-xs text-gray-400">{row.time}</p>
                     </td>
                     <td className="py-3 text-right relative">
-                      {isAdmin ? (
-                        <>
-                          <button
-                            onClick={() => setOpenMenu(openMenu === index ? null : index)}
-                            className="text-gray-400 hover:text-gray-700 p-1"
-                          >
-                            <MoreVertical size={16} />
-                          </button>
-                          {openMenu === index && (
-                            <div className="absolute right-6 top-8 bg-white border border-gray-200 rounded-lg shadow-md z-10 w-32 text-left">
-                              <button
-                                onClick={() => { onView(row); setOpenMenu(null); }}
-                                className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                              >
-                                View
-                              </button>
-                              <button
-                                onClick={() => { onEdit(row); setOpenMenu(null); }}
-                                className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => { onDelete(row); setOpenMenu(null); }}
-                                className="block w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-gray-50"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        // Staff only ever have View available — a kebab menu
-                        // hiding a single option is worse than just showing
-                        // the action directly.
+                      <div className="flex items-center justify-end gap-1">
+                        {/* Printing a label doesn't touch data, so it's
+                            available to every role — not folded into the
+                            admin-only kebab menu below. */}
                         <button
-                          onClick={() => onView(row)}
+                          onClick={() => onPrintLabel(row)}
                           className="text-gray-400 hover:text-gray-700 p-1"
-                          aria-label="View"
+                          aria-label="Print Label"
+                          title="Print Label"
                         >
-                          <Eye size={16} />
+                          <Printer size={16} />
                         </button>
-                      )}
+                        {isAdmin ? (
+                          <>
+                            <button
+                              onClick={() => setOpenMenu(openMenu === index ? null : index)}
+                              className="text-gray-400 hover:text-gray-700 p-1"
+                            >
+                              <MoreVertical size={16} />
+                            </button>
+                            {openMenu === index && (
+                              <div className="absolute right-6 top-8 bg-white border border-gray-200 rounded-lg shadow-md z-10 w-32 text-left">
+                                <button
+                                  onClick={() => { onView(row); setOpenMenu(null); }}
+                                  className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                                >
+                                  View
+                                </button>
+                                <button
+                                  onClick={() => { onEdit(row); setOpenMenu(null); }}
+                                  className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => { onDelete(row); setOpenMenu(null); }}
+                                  className="block w-full text-left px-3 py-2 text-sm text-red-500 hover:bg-gray-50"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          // Staff only ever have View available — a kebab
+                          // menu hiding a single option is worse than just
+                          // showing the action directly.
+                          <button
+                            onClick={() => onView(row)}
+                            className="text-gray-400 hover:text-gray-700 p-1"
+                            aria-label="View"
+                          >
+                            <Eye size={16} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Search, Filter, Plus, X, ChevronLeft, ChevronRight, ShoppingCart, AlertTriangle, Wallet, CreditCard, Smartphone, Landmark, FileCheck, CalendarClock, Building2, Tablet, Laptop, Watch, Headphones, Wrench, PackagePlus, Repeat } from "lucide-react";
+import { Search, Filter, Plus, X, ChevronLeft, ChevronRight, ShoppingCart, AlertTriangle, Wallet, CreditCard, Smartphone, Landmark, FileCheck, CalendarClock, Building2, Tablet, Laptop, Watch, Headphones, Wrench, PackagePlus, Repeat, Camera, Printer } from "lucide-react";
 import { useServiceData } from "../../hooks/useServiceData";
 import { processSale } from "../../services/salesService";
 import { getAvailableDevicesForSale, deleteDevice } from "../../services/inventoryService";
 import { getPosCategories } from "../../services/referenceService";
+import { getCurrentProfile } from "../../services/authService";
 import { useToast } from "../../hooks/useToast";
 import QuickAddDeviceModal from "../../components/sales/QuickAddDeviceModal";
 import SwapTradeInModal from "../../components/sales/SwapTradeInModal";
+import ScanBarcodeModal from "../../components/common/ScanBarcodeModal";
+import PrintReceiptModal from "../../components/sales/PrintReceiptModal";
 
 const BULK_THRESHOLD = 3;
 
@@ -57,6 +60,7 @@ const categoryColor = {
 function NewSale() {
   const showToast = useToast();
   const posCategories = useServiceData(getPosCategories, []);
+  const profile = useServiceData(getCurrentProfile, null);
 
   const [availableDevices, setAvailableDevices] = useState([]);
   const loadAvailableDevices = useCallback(() => {
@@ -79,8 +83,11 @@ function NewSale() {
   const [error, setError] = useState("");
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
+  const [showScan, setShowScan] = useState(false);
   const [swapTradeIn, setSwapTradeIn] = useState(null);
   const [forceBulk, setForceBulk] = useState(false);
+  const [lastReceipt, setLastReceipt] = useState(null);
+  const [showReceipt, setShowReceipt] = useState(false);
 
   const cartIds = useMemo(() => new Set(cart.map((c) => c.id)), [cart]);
 
@@ -109,6 +116,24 @@ function NewSale() {
 
   const updateActualPrice = (id, value) => {
     setCart((prev) => prev.map((c) => (c.id === id ? { ...c, actualPrice: value } : c)));
+  };
+
+  // Scanning is a shortcut straight to the cart, not just a search-box
+  // fill-in — staff scanning units at the counter want the unit added, not
+  // an extra step of finding it in the results and clicking Plus again.
+  const handleScanned = (value) => {
+    setShowScan(false);
+    const match = availableDevices.find((p) => p.batchCode.toLowerCase() === value.toLowerCase());
+    if (!match) {
+      showToast(`No available unit found for batch code "${value}".`, "error");
+      return;
+    }
+    if (cartIds.has(match.id)) {
+      showToast(`${match.batchCode} is already in the cart.`, "error");
+      return;
+    }
+    addToCart(match);
+    showToast(`${match.batchCode} added to cart.`);
   };
 
   // A unit that didn't exist in inventory a moment ago — goes straight into
@@ -256,6 +281,28 @@ function NewSale() {
       });
 
       showToast("Sale processed.");
+      // Built from what's already in hand (cart + form state) rather than
+      // re-querying — every field the receipt needs was already entered
+      // right here, so there's no need for a round trip back to the DB.
+      setLastReceipt({
+        soldAt: new Date().toISOString(),
+        customerName: customerSearch.trim() || null,
+        customerPhone: null,
+        salesperson: profile?.name || null,
+        paymentMethod: payment,
+        paymentStatus: isBulk ? "Pending" : "Paid",
+        referenceNumber,
+        notes: notes.trim() || null,
+        downPayment: FINANCING_METHODS.includes(payment) && downPayment !== "" ? Number(downPayment) : null,
+        balance: FINANCING_METHODS.includes(payment) && balance !== "" ? Number(balance) : null,
+        items: cart.map((c) => ({
+          device: c.product,
+          storage: c.storage,
+          color: c.color,
+          batchCode: c.batchCode,
+          price: Number(c.actualPrice) || 0,
+        })),
+      });
       clearCart();
       setReferenceNumber("N/A");
       setDownPayment("");
@@ -273,7 +320,12 @@ function NewSale() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <>
+    {/* print:hidden here (not further out) — PrintReceiptModal's own
+        print-only receipt is a true sibling below, outside this div, so an
+        ancestor's display:none never hides it. Without this, the whole POS
+        layout would print alongside the receipt instead of being suppressed. */}
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 print:hidden">
       {/* Left + Middle columns */}
       <div className="lg:col-span-2 space-y-4">
         {/* Step 1: Customer */}
@@ -315,6 +367,13 @@ function NewSale() {
             <button className="flex items-center gap-1.5 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 whitespace-nowrap">
               <Filter size={14} />
               Filters
+            </button>
+            <button
+              onClick={() => setShowScan(true)}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 whitespace-nowrap"
+            >
+              <Camera size={14} />
+              Scan
             </button>
             <button
               onClick={() => setShowQuickAdd(true)}
@@ -440,6 +499,15 @@ function NewSale() {
           <div className="text-center py-10">
             <ShoppingCart size={28} className="text-gray-200 mx-auto mb-2" />
             <p className="text-sm text-gray-400">Cart is empty</p>
+            {lastReceipt && (
+              <button
+                onClick={() => setShowReceipt(true)}
+                className="mt-3 flex items-center gap-1.5 mx-auto px-3 py-1.5 text-sm text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50"
+              >
+                <Printer size={14} />
+                Print Receipt (Last Sale)
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-3 mb-4 max-h-64 overflow-y-auto pr-1">
@@ -732,15 +800,22 @@ function NewSale() {
           {submitting ? "Processing..." : "Process Sale"}
         </button>
       </div>
-
-      {showQuickAdd && (
-        <QuickAddDeviceModal onClose={() => setShowQuickAdd(false)} onCreated={handleQuickAdded} />
-      )}
-
-      {showSwapModal && (
-        <SwapTradeInModal onClose={() => setShowSwapModal(false)} onCreated={handleSwapTradeInCreated} />
-      )}
     </div>
+
+    {showQuickAdd && (
+      <QuickAddDeviceModal onClose={() => setShowQuickAdd(false)} onCreated={handleQuickAdded} />
+    )}
+
+    {showSwapModal && (
+      <SwapTradeInModal onClose={() => setShowSwapModal(false)} onCreated={handleSwapTradeInCreated} />
+    )}
+
+    {showScan && <ScanBarcodeModal onScanned={handleScanned} onClose={() => setShowScan(false)} />}
+
+    {showReceipt && lastReceipt && (
+      <PrintReceiptModal receipt={lastReceipt} onClose={() => setShowReceipt(false)} />
+    )}
+    </>
   );
 }
 

@@ -18,7 +18,16 @@ const categoryColors = {
   iPads: "#22c55e",
   "Apple Watches": "#f97316",
   MacBooks: "#a855f7",
+  Accessories: "#ec4899",
+  "Repair Parts": "#eab308",
 };
+// Any category without a fixed color above (new Android brands, or any
+// future brand added through Manage Catalog) cycles through this palette
+// instead of rendering an undefined/blank donut slice.
+const fallbackCategoryColors = ["#06b6d4", "#f43f5e", "#84cc16", "#6366f1", "#f59e0b", "#14b8a6"];
+function colorForCategory(cat, index) {
+  return categoryColors[cat] || fallbackCategoryColors[index % fallbackCategoryColors.length];
+}
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -57,13 +66,13 @@ function Dashboard() {
   ];
 
   const totalDevices = allDevices.length;
-  const inventoryByCategory = deviceCategories.map((cat) => {
+  const inventoryByCategory = deviceCategories.map((cat, index) => {
     const value = allDevices.filter((d) => d.category === cat).length;
     return {
       name: cat,
       value,
       percent: totalDevices ? Number(((value / totalDevices) * 100).toFixed(1)) : 0,
-      color: categoryColors[cat],
+      color: colorForCategory(cat, index),
     };
   });
 

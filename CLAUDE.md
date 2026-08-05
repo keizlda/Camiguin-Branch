@@ -34,15 +34,30 @@ here and need to be dropped, not adapted.
 
 - Code is complete and caught up with the main store's feature set as of
   2026-08-05 — lint and build both pass clean.
-- Git: local repo only, no GitHub remote configured yet. Not deployed
-  anywhere.
-- Supabase: **not set up yet**. `.env` has empty placeholders. Never run
-  against a live database or exercised end-to-end in a browser.
+- Git: pushed to GitHub at github.com/keizlda/Camiguin-Branch (public),
+  local branch renamed `master` → `main` to match. Deployed on Vercel,
+  auto-deploys on push to `main`.
+- Supabase: **set up and live** — project "Camiguin Branch", schema.sql has
+  been run, RLS confirmed working, first admin user created and promoted.
+  `.env` has real values (still gitignored, never committed).
 - `supabase/schema.sql` is the single source of truth to run in a fresh
   Supabase project's SQL Editor — there is no `supabase/migrations/`
   history here to replay; schema.sql already reflects the current desired
-  end state. If that changes (a migrations folder gets introduced), update
-  this note.
+  end state. Since the project now has a live database, changes past this
+  point need a hand-run migration against the live DB too (idempotent,
+  additive-only) — schema.sql alone no longer brings an existing project
+  up to date, only a fresh one.
+- As of 2026-08-06: product categories/brands moved from a hardcoded list
+  (`referenceData.js`) into a `categories` DB table, admin-editable at
+  runtime via Add Device → Manage Catalog → Categories & Brands. Batch
+  codes are now brand-prefixed (`<PREFIX>MMDDYY-###`, e.g. `SS080626-001`),
+  generated via a button on Add Device using each category's own prefix.
+  Also added: barcode label printing (Code128, Add Device + All Devices,
+  single or batch via row checkboxes), phone/webcam camera barcode
+  scanning (`ScanBarcodeModal`, wired into every batch-code search/entry
+  field plus scan-to-cart on New Sale), and a printable sales receipt (New
+  Sale post-sale + Sales History row action, gathers every unit in a sale
+  even though Sales History itself is one row per unit).
 
 ## Architecture Patterns
 

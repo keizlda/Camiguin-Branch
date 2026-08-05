@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Info, AlertTriangle, ClipboardList, Fingerprint, Eye, Calendar, Apple, PackagePlus, Settings } from "lucide-react";
+import { Info, AlertTriangle, ClipboardList, Fingerprint, Eye, Calendar, Smartphone, PackagePlus, Settings, RefreshCw, Printer, Camera } from "lucide-react";
 import { getProductCatalog } from "../../services/referenceService";
 import { addDevice, getNextBatchSequence } from "../../services/inventoryService";
 import { getPendingShellsWithProgress } from "../../services/bulkOrderShellsService";
@@ -8,11 +8,15 @@ import { isAccessoryLikeCategory } from "../../data/referenceData";
 import { formatDate, todayLocalDateString } from "../../utils/datetime";
 import SupplierSelect from "../../components/inventory/SupplierSelect";
 import ManageCatalogModal from "../../components/inventory/ManageCatalogModal";
+import PrintLabelsModal from "../../components/inventory/PrintLabelsModal";
+import ScanBarcodeModal from "../../components/common/ScanBarcodeModal";
 import { useToast } from "../../hooks/useToast";
 import { useIsAdmin } from "../../hooks/useIsAdmin";
 
-// Batch codes follow MMDDYY-### (e.g. 073026-001) — prefilling the date
-// part means staff only ever need to type the sequence number.
+// Batch codes follow <PREFIX>MMDDYY-### (e.g. SS073026-004) — the brand
+// prefix comes from the currently selected category's catalog entry
+// (categories.prefix in the database), so this only ever builds the
+// date+sequence part; generateBatchCode below prepends the prefix.
 function batchCodeDatePrefix() {
   const d = new Date();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -37,19 +41,6 @@ const statusOptions = [
   { label: "Available", color: "bg-green-500" },
   { label: "Supplier Defective", color: "bg-red-500" },
 ];
-
-// productCatalog keys are singular ("iPhone"); devices.category in the DB is
-// plural ("iPhones") to match the CHECK constraint — this maps between them.
-// Accessories/Repair Parts have no singular/plural distinction, so they map
-// to themselves.
-const categoryToDbValue = {
-  iPhone: "iPhones",
-  iPad: "iPads",
-  "Apple Watch": "Apple Watches",
-  MacBook: "MacBooks",
-  Accessories: "Accessories",
-  "Repair Parts": "Repair Parts",
-};
 
 const OTHER_MODEL = "__other__";
 const conditionOptions = ["Brand New", "Pre-owned"];
@@ -99,6 +90,11 @@ function AddDevice() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [showManageCatalog, setShowManageCatalog] = useState(false);
+  // The unit just saved — shown as a dismissible "Print Label" prompt until
+  // the next save (or the banner's own X) replaces/clears it.
+  const [justSaved, setJustSaved] = useState(null);
+  const [showPrintLabel, setShowPrintLabel] = useState(false);
+  const [showScanBatchCode, setShowScanBatchCode] = useState(false);
 
   const [pendingShells, setPendingShells] = useState([]);
   const loadPendingShells = useCallback(() => {
@@ -108,22 +104,41 @@ function AddDevice() {
     loadPendingShells();
   }, [loadPendingShells]);
 
-  // Fills in the full batch code, not just the date prefix — picking the
-  // next unused sequence number removes the chance of two staff entries
-  // colliding on the same code. Falls back to leaving the prefix-only
-  // value in place (staff can still type the rest) if the lookup fails.
-  const generateBatchCode = useCallback(async () => {
-    const prefix = batchCodeDatePrefix();
-    try {
-      const seq = await getNextBatchSequence(prefix);
-      setForm((f) => ({ ...f, batchCode: `${prefix}${String(seq).padStart(3, "0")}` }));
-    } catch {
-      // leave whatever's already in the field
-    }
-  }, []);
+  // Fills in the full batch code — brand prefix (from the category's own
+  // catalog entry) + today's date + the next unused sequence number for
+  // that exact prefix+date combo, checked against existing devices.batch_code
+  // values (see getNextBatchSequence) so two staff entries can't collide on
+  // the same code. Falls back to leaving whatever's already in the field if
+  // the category's catalog entry isn't loaded yet or the lookup fails —
+  // this never touches existing devices, only what gets typed into this
+  // one field before Save Device is clicked.
+  const generateBatchCode = useCallback(
+    async (category) => {
+      const catalogEntry = productCatalog[category];
+      if (!catalogEntry) return;
+      const prefix = `${catalogEntry.prefix}${batchCodeDatePrefix()}`;
+      try {
+        const seq = await getNextBatchSequence(prefix);
+        setForm((f) => ({ ...f, batchCode: `${prefix}${String(seq).padStart(3, "0")}` }));
+      } catch {
+        // leave whatever's already in the field
+      }
+    },
+    [productCatalog]
+  );
+
+  // Auto-generates once, the first moment the currently-selected category's
+  // catalog entry (and therefore its prefix) becomes available — covers the
+  // initial page load. Deliberately doesn't re-run on every later catalog
+  // refetch (e.g. from Manage Catalog), which would otherwise silently
+  // clobber a batch code staff already generated or hand-edited; category
+  // changes and Save Device both trigger regeneration explicitly instead.
+  const [autoGenerated, setAutoGenerated] = useState(false);
   useEffect(() => {
-    generateBatchCode();
-  }, [generateBatchCode]);
+    if (autoGenerated || !productCatalog[form.category]) return;
+    setAutoGenerated(true);
+    generateBatchCode(form.category);
+  }, [autoGenerated, productCatalog, form.category, generateBatchCode]);
 
   const catalog = productCatalog[form.category];
   const isOtherModel = form.model === OTHER_MODEL;
@@ -152,6 +167,10 @@ function AddDevice() {
       // invalid rather than actually being saved.
       supplier: "",
     }));
+    // The batch code prefix is brand-specific — regenerate so it matches
+    // the newly selected category instead of leaving a stale prefix from
+    // whatever was selected before.
+    generateBatchCode(category);
   };
 
   const handleModelChange = (model) => {
@@ -197,10 +216,10 @@ function AddDevice() {
       const isToday = form.dateReceived === todayLocalDateString();
       const dateAdded = isToday ? new Date().toISOString() : new Date(`${form.dateReceived}T00:00:00`).toISOString();
 
-      await addDevice({
+      const savedDevice = await addDevice({
         batchCode: form.batchCode.trim(),
         deviceName: resolvedModel,
-        category: categoryToDbValue[form.category],
+        category: catalog.dbValue,
         storage: isRepairPart ? null : form.storage,
         color: isRepairPart ? null : form.color,
         status: form.status,
@@ -216,9 +235,16 @@ function AddDevice() {
       });
 
       showToast("Device saved.");
+      setJustSaved({
+        id: savedDevice.id,
+        batchCode: form.batchCode.trim(),
+        device: resolvedModel,
+        storage: isRepairPart ? null : form.storage,
+        color: isRepairPart ? null : form.color,
+      });
       setForm(createBlankForm());
       loadPendingShells();
-      generateBatchCode();
+      generateBatchCode(createBlankForm().category);
     } catch (err) {
       if (err.code === "23505") {
         setError("A device with this batch code already exists.");
@@ -234,14 +260,14 @@ function AddDevice() {
 
   return (
     <>
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4 print:hidden">
       {/* Info banner */}
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <Info size={18} className="text-blue-500 mt-0.5 flex-shrink-0" />
           <div>
             <p className="text-sm font-medium text-blue-900">
-              Register a new Apple device into the inventory.
+              Register a new device into the inventory.
             </p>
             <p className="text-xs text-blue-500">All fields marked with * are required.</p>
           </div>
@@ -262,6 +288,32 @@ function AddDevice() {
         <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex items-start gap-3">
           <AlertTriangle size={18} className="text-red-500 mt-0.5 flex-shrink-0" />
           <p className="text-sm font-medium text-red-700">{error}</p>
+        </div>
+      )}
+
+      {justSaved && (
+        <div className="bg-green-50 border border-green-100 rounded-xl p-4 flex items-center justify-between gap-3">
+          <p className="text-sm text-green-800">
+            Saved <span className="font-medium">{justSaved.batchCode}</span> — {justSaved.device}
+          </p>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowPrintLabel(true)}
+              className="flex items-center gap-1.5 text-sm text-green-700 border border-green-200 bg-white px-3 py-1.5 rounded-lg hover:bg-green-50"
+            >
+              <Printer size={14} />
+              Print Label
+            </button>
+            <button
+              type="button"
+              onClick={() => setJustSaved(null)}
+              className="text-green-400 hover:text-green-700 px-2 text-lg leading-none"
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
 
@@ -447,15 +499,37 @@ function AddDevice() {
               <label className="block text-xs font-medium text-gray-600 mb-1">
                 Batch Code <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={form.batchCode}
-                onChange={(e) => update("batchCode", e.target.value)}
-                required
-                placeholder="070926-001"
-                className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-gray-400 mt-1">Auto-filled with the next available code — edit it if needed</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={form.batchCode}
+                  onChange={(e) => update("batchCode", e.target.value)}
+                  required
+                  placeholder="SS070926-001"
+                  className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => generateBatchCode(form.category)}
+                  title="Generate a new code using this category's brand prefix"
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 flex-shrink-0 whitespace-nowrap"
+                >
+                  <RefreshCw size={14} />
+                  Generate
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowScanBatchCode(true)}
+                  title="Scan an existing label's barcode into this field"
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 flex-shrink-0"
+                >
+                  <Camera size={14} />
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">
+                Auto-filled with the next available code for this category's brand prefix — edit it, or click
+                Generate, if needed
+              </p>
             </div>
 
             <div>
@@ -538,7 +612,7 @@ function AddDevice() {
 
           <div className="bg-gray-50 rounded-xl p-4 flex items-center gap-3 mb-4">
             <div className="w-16 h-16 bg-white rounded-lg border border-gray-200 flex items-center justify-center flex-shrink-0">
-              <Apple size={28} className="text-gray-300" />
+              <Smartphone size={28} className="text-gray-300" />
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-800">{resolvedModel || "—"}</p>
@@ -637,6 +711,20 @@ function AddDevice() {
 
     {showManageCatalog && (
       <ManageCatalogModal onClose={() => setShowManageCatalog(false)} onChanged={loadProductCatalog} />
+    )}
+
+    {showPrintLabel && justSaved && (
+      <PrintLabelsModal devices={[justSaved]} onClose={() => setShowPrintLabel(false)} />
+    )}
+
+    {showScanBatchCode && (
+      <ScanBarcodeModal
+        onScanned={(value) => {
+          update("batchCode", value);
+          setShowScanBatchCode(false);
+        }}
+        onClose={() => setShowScanBatchCode(false)}
+      />
     )}
     </>
   );

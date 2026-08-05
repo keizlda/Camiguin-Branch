@@ -14,17 +14,6 @@ function batchCodeDatePrefix() {
   return `${mm}${dd}${yy}-`;
 }
 
-// Mirrors Add Device's category mapping — kept local since it's a handful
-// of lines, not worth sharing a module for.
-const categoryToDbValue = {
-  iPhone: "iPhones",
-  iPad: "iPads",
-  "Apple Watch": "Apple Watches",
-  MacBook: "MacBooks",
-  Accessories: "Accessories",
-  "Repair Parts": "Repair Parts",
-};
-
 const OTHER_MODEL = "__other__";
 const conditionOptions = ["Brand New", "Pre-owned"];
 const repairPartConditionOptions = ["Brand New", "Genuine", "Used"];
@@ -60,13 +49,17 @@ function QuickAddDeviceModal({ onClose, onCreated }) {
 
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
+  // Brand-prefixed, same as Add Device's generator — re-runs whenever the
+  // category (and therefore its prefix) changes, and once the catalog first
+  // loads for the initial category.
   useEffect(() => {
-    const prefix = batchCodeDatePrefix();
+    if (!catalog) return;
+    const prefix = `${catalog.prefix}${batchCodeDatePrefix()}`;
     getNextBatchSequence(prefix)
       .then((seq) => update("batchCode", `${prefix}${String(seq).padStart(3, "0")}`))
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [catalog]);
 
   const handleCategoryChange = (category) => {
     setForm((f) => ({
@@ -95,7 +88,7 @@ function QuickAddDeviceModal({ onClose, onCreated }) {
       const { id } = await addDevice({
         batchCode: form.batchCode.trim(),
         deviceName: resolvedModel,
-        category: categoryToDbValue[form.category],
+        category: catalog.dbValue,
         storage: isRepairPart ? null : form.storage,
         color: isRepairPart ? null : form.color,
         status: "Available",
@@ -111,7 +104,7 @@ function QuickAddDeviceModal({ onClose, onCreated }) {
         id,
         batchCode: form.batchCode.trim(),
         product: resolvedModel,
-        category: categoryToDbValue[form.category],
+        category: catalog.dbValue,
         storage: isRepairPart ? null : form.storage,
         color: isRepairPart ? null : form.color,
         price,

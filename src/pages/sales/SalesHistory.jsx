@@ -9,6 +9,8 @@ import {
   ChevronLeft,
   ChevronRight,
   PackageCheck,
+  Camera,
+  Printer,
 } from "lucide-react";
 import { useServiceData } from "../../hooks/useServiceData";
 import { useIsAdmin } from "../../hooks/useIsAdmin";
@@ -19,6 +21,8 @@ import InitiateReturnModal from "../../components/sales/InitiateReturnModal";
 import DeviceDetailsModal from "../../components/inventory/DeviceDetailsModal";
 import EditSaleModal from "../../components/sales/EditSaleModal";
 import DateRangePicker from "../../components/common/DateRangePicker";
+import ScanBarcodeModal from "../../components/common/ScanBarcodeModal";
+import PrintReceiptModal from "../../components/sales/PrintReceiptModal";
 import { useToast } from "../../hooks/useToast";
 
 // An undone sale (a Sold unit edited back to Available, or deleted
@@ -71,6 +75,36 @@ function SalesHistory() {
   const [markingPaidId, setMarkingPaidId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [editingRow, setEditingRow] = useState(null);
+  const [showScan, setShowScan] = useState(false);
+  const [receiptData, setReceiptData] = useState(null);
+
+  // Sales History shows one row per unit, but a receipt needs every unit
+  // in the sale together — gathered from the full (unfiltered) list so a
+  // search/date-range filter narrowing what's visible never drops units
+  // that are still part of the same sale.
+  const handlePrintReceipt = (row) => {
+    setOpenMenu(null);
+    const allUnits = salesHistory.filter((s) => s.saleId === row.saleId);
+    setReceiptData({
+      soldAt: row.soldAt,
+      customerName: row.customer || null,
+      customerPhone: row.phone || null,
+      salesperson: row.salesperson || null,
+      paymentMethod: row.payment,
+      paymentStatus: row.paymentStatus,
+      referenceNumber: row.referenceNumber,
+      notes: row.notes,
+      downPayment: row.downPayment,
+      balance: row.balance,
+      items: allUnits.map((u) => ({
+        device: u.device,
+        storage: u.storage,
+        color: u.color,
+        batchCode: u.batchCode,
+        price: u.total,
+      })),
+    });
+  };
 
   const handleMarkAsPaid = async (row) => {
     setOpenMenu(null);
@@ -175,7 +209,11 @@ function SalesHistory() {
   };
 
   return (
-    <div className="space-y-4">
+    <>
+    {/* print:hidden here (not further out) — PrintReceiptModal's own
+        print-only receipt is a true sibling below, outside this div, so an
+        ancestor's display:none never hides it. */}
+    <div className="space-y-4 print:hidden">
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <p className="text-sm font-medium text-gray-700 mb-4">Filters</p>
@@ -228,15 +266,25 @@ function SalesHistory() {
 
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Search Batch Code / Customer</label>
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search batch code or customer name..."
-                className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search batch code or customer name..."
+                  className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowScan(true)}
+                title="Scan a barcode into this field"
+                className="flex items-center px-3 py-2.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 flex-shrink-0"
+              >
+                <Camera size={14} />
+              </button>
             </div>
           </div>
         </div>
@@ -375,6 +423,13 @@ function SalesHistory() {
                       </button>
                       {openMenu === index && (
                         <div className="absolute right-6 top-8 bg-white border border-gray-200 rounded-lg shadow-md z-10 w-44 text-left">
+                          <button
+                            onClick={() => handlePrintReceipt(row)}
+                            className="flex items-center gap-1.5 w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                          >
+                            <Printer size={13} />
+                            Print Receipt
+                          </button>
                           {row.deviceId ? (
                             <button
                               onClick={() => handleViewUnitInfo(row)}
@@ -486,8 +541,9 @@ function SalesHistory() {
           Return started — resolve it with a replacement unit from After Sales &gt; Customer Returns.
         </div>
       )}
+    </div>
 
-      {returnRecord && (
+    {returnRecord && (
         <InitiateReturnModal
           record={returnRecord}
           onClose={() => setReturnRecord(null)}
@@ -522,7 +578,19 @@ function SalesHistory() {
           }}
         />
       )}
-    </div>
+
+      {showScan && (
+        <ScanBarcodeModal
+          onScanned={(value) => {
+            setSearch(value);
+            setShowScan(false);
+          }}
+          onClose={() => setShowScan(false)}
+        />
+      )}
+
+    {receiptData && <PrintReceiptModal receipt={receiptData} onClose={() => setReceiptData(null)} />}
+    </>
   );
 }
 

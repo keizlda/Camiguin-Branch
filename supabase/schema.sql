@@ -32,13 +32,49 @@ create table public.suppliers (
   created_at timestamptz not null default now()
 );
 
+-- Product categories/brands — editable by the admin at runtime (Add Device
+-- → Manage Catalog → Categories) instead of requiring a code deploy to add
+-- a new brand. name is the canonical form (matches product_models.category
+-- below); db_value is what actually gets stored in devices.category, which
+-- differs from name only for the four original Apple categories (they kept
+-- their historical plural spelling — 'iPhones' not 'iPhone' — since existing
+-- device rows already use it and are never touched; every category added
+-- from here on just uses the same spelling in both places). prefix drives
+-- batch-code generation (see add_device's caller in AddDevice.jsx) — kept
+-- unique so two categories can never generate colliding batch codes.
+create table public.categories (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  db_value text not null,
+  brand text not null,
+  prefix text not null unique check (prefix = upper(prefix)),
+  storages text[] not null default '{}',
+  -- Accessories/Repair Parts (and any future non-serialized-device category)
+  -- set this true — mirrors isAccessoryLikeCategory in referenceData.js,
+  -- which still hardcodes just those two by name for the small bit of
+  -- non-catalog UI (SupplierSelect's Device/Accessory split) that doesn't
+  -- have a category object handy.
+  is_accessory_like boolean not null default false,
+  -- Archived (not deleted) once the admin removes it — same reasoning as
+  -- suppliers.active: product_models/devices reference a category by name
+  -- as free text, not a foreign key, so a hard delete would either orphan
+  -- history or silently break nothing while still losing the prefix/brand
+  -- info for anything already on file. Archiving just hides it from future
+  -- picks without touching past records.
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
 -- The Add Device / Quick Add catalog — models and their colors, editable by
 -- the admin at runtime instead of requiring a code deploy. device_name/color
 -- on devices are free text, not foreign keys, so removing a model or color
 -- here never touches existing inventory rows, only future selections.
+-- category is free text (not a foreign key to categories.name) for the same
+-- reason — matches categories.name, but isn't enforced as one so removing a
+-- category never orphans/breaks existing product_models rows either.
 create table public.product_models (
   id uuid primary key default gen_random_uuid(),
-  category text not null check (category in ('iPhone', 'iPad', 'Apple Watch', 'MacBook', 'Accessories', 'Repair Parts')),
+  category text not null,
   name text not null,
   colors text[] not null default '{}',
   created_at timestamptz not null default now(),
@@ -49,7 +85,10 @@ create table public.devices (
   id uuid primary key default gen_random_uuid(),
   batch_code text not null unique,
   device_name text not null,
-  category text not null check (category in ('iPhones', 'iPads', 'Apple Watches', 'MacBooks', 'Accessories', 'Repair Parts')),
+  -- Free text, not a foreign key or CHECK-constrained enum — matches
+  -- categories.db_value, but see the comment on that table for why it
+  -- isn't formally enforced as one.
+  category text not null,
   storage text,
   color text,
   status text not null default 'Available'
@@ -961,6 +1000,7 @@ create trigger on_auth_user_created
 
 alter table public.profiles enable row level security;
 alter table public.suppliers enable row level security;
+alter table public.categories enable row level security;
 alter table public.product_models enable row level security;
 alter table public.devices enable row level security;
 alter table public.reorder_settings enable row level security;
@@ -981,6 +1021,9 @@ create policy "profiles_update_own" on public.profiles
 
 -- Every other table: full CRUD for any authenticated user, for now.
 create policy "suppliers_all_authenticated" on public.suppliers
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+create policy "categories_all_authenticated" on public.categories
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
 create policy "product_models_all_authenticated" on public.product_models
@@ -1012,6 +1055,29 @@ create policy "expenses_all_authenticated" on public.expenses
 
 create policy "bulk_order_shells_all_authenticated" on public.bulk_order_shells
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+-- ============================================================
+-- SEED — categories (brand/prefix/storage catalog)
+-- ============================================================
+-- The four original Apple categories keep their historical plural
+-- db_value ('iPhones' etc.) since existing device rows already use that
+-- exact spelling. Every category from here on (Accessories/Repair Parts
+-- included, plus every Android brand) uses the same spelling in both name
+-- and db_value — there's no plural-form quirk to carry forward for those.
+insert into public.categories (name, db_value, brand, prefix, storages, is_accessory_like) values
+  ('iPhone', 'iPhones', 'Apple', 'IP', ARRAY['128GB','256GB','512GB','1TB'], false),
+  ('iPad', 'iPads', 'Apple', 'IPD', ARRAY['64GB','128GB','256GB','512GB'], false),
+  ('Apple Watch', 'Apple Watches', 'Apple', 'AW', ARRAY['-'], false),
+  ('MacBook', 'MacBooks', 'Apple', 'MB', ARRAY['256GB','512GB','1TB','2TB'], false),
+  ('Accessories', 'Accessories', 'Various', 'AC', ARRAY['N/A'], true),
+  ('Repair Parts', 'Repair Parts', 'Various', 'RP', ARRAY['N/A'], true),
+  ('Samsung', 'Samsung', 'Samsung', 'SS', ARRAY['64GB','128GB','256GB','512GB'], false),
+  ('Vivo', 'Vivo', 'Vivo', 'VV', ARRAY['64GB','128GB','256GB','512GB'], false),
+  ('Realme', 'Realme', 'Realme', 'RM', ARRAY['64GB','128GB','256GB','512GB'], false),
+  ('Redmi', 'Redmi', 'Redmi', 'RD', ARRAY['64GB','128GB','256GB','512GB'], false),
+  ('Infinix', 'Infinix', 'Infinix', 'IF', ARRAY['64GB','128GB','256GB','512GB'], false),
+  ('Tecno', 'Tecno', 'Tecno', 'TC', ARRAY['64GB','128GB','256GB','512GB'], false)
+on conflict (name) do nothing;
 
 -- ============================================================
 -- SEED — default product catalog (models + colors)
