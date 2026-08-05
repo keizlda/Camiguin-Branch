@@ -122,7 +122,14 @@ function AddDevice() {
       const prefix = `${catalogEntry.prefix}${batchCodeDatePrefix()}`;
       try {
         const seq = await getNextBatchSequence(prefix);
-        setForm((f) => ({ ...f, batchCode: `${prefix}${String(seq).padStart(3, "0")}` }));
+        const code = `${prefix}${String(seq).padStart(3, "0")}`;
+        setForm((f) => ({ ...f, batchCode: code }));
+        // The "next available" code for a given prefix+date is deterministic
+        // until a device is actually saved with it — clicking Generate twice
+        // in a row with nothing saved in between correctly produces the same
+        // value both times. Without this, that looked indistinguishable from
+        // the button silently doing nothing.
+        if (!silent) showToast(`Generated ${code}.`);
       } catch (err) {
         // Auto-generation on mount/category-change fails silently (staff
         // can still type the code by hand) — but the explicit Generate
