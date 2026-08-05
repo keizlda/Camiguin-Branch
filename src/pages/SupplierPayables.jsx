@@ -3,6 +3,7 @@ import { Wallet, Info, Users2 } from "lucide-react";
 import { getSupplierPayables } from "../services/bulkOrderShellsService";
 import { getSalesHistory, updateSalePaymentStatus } from "../services/salesService";
 import MarkPaymentModal from "../components/payables/MarkPaymentModal";
+import BulkOrderDetailsModal from "../components/payables/BulkOrderDetailsModal";
 import { useToast } from "../hooks/useToast";
 
 const statusStyles = {
@@ -62,11 +63,14 @@ function SupplierPayables() {
 
   const [buyerFilter, setBuyerFilter] = useState("All");
   const [updatingSaleId, setUpdatingSaleId] = useState(null);
+  const [viewOrder, setViewOrder] = useState(null);
 
   // One row per sale_item, all sharing the same sale — grouped back into
   // one bulk order per saleId so "what they bought" lists every unit under
   // a single Paid/Pending status (payment_status lives on the sale, not
-  // per unit).
+  // per unit). Keeps full per-unit detail (not just a joined name string)
+  // so the "View" popup can show amount/profit per item, same shape as
+  // Reports' table.
   const bulkOrders = useMemo(() => {
     const map = new Map();
     for (const row of salesHistory) {
@@ -79,11 +83,18 @@ function SupplierPayables() {
           paymentStatus: row.paymentStatus,
           items: [],
           total: 0,
+          totalProfit: 0,
         });
       }
       const order = map.get(row.saleId);
-      order.items.push([row.device, row.storage, row.color].filter(Boolean).join(" · "));
+      order.items.push({
+        batchCode: row.batchCode,
+        unit: [row.device, row.storage, row.color].filter(Boolean).join(" · "),
+        price: row.total,
+        netProfit: row.netProfit,
+      });
       order.total += row.total;
+      order.totalProfit += row.netProfit ?? 0;
     }
     return [...map.values()].sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [salesHistory]);
@@ -311,8 +322,14 @@ function SupplierPayables() {
                       <tr key={o.saleId} className="border-b border-gray-50 hover:bg-gray-50">
                         <td className="py-3 pr-4 text-gray-800 font-medium whitespace-nowrap">{o.customer}</td>
                         <td className="py-3 pr-4 text-gray-500 whitespace-nowrap">{o.date}</td>
-                        <td className="py-3 pr-4 text-gray-600">
-                          {o.items.length} unit{o.items.length === 1 ? "" : "s"} — {o.items.join(", ")}
+                        <td className="py-3 pr-4">
+                          <button
+                            type="button"
+                            onClick={() => setViewOrder(o)}
+                            className="text-sm text-blue-600 hover:underline"
+                          >
+                            {o.items.length} unit{o.items.length === 1 ? "" : "s"} — View
+                          </button>
                         </td>
                         <td className="py-3 pr-4 text-gray-800 font-medium whitespace-nowrap">
                           ₱{o.total.toLocaleString(undefined, { maximumFractionDigits: 2 })}
@@ -359,6 +376,8 @@ function SupplierPayables() {
           onUpdated={handleUpdated}
         />
       )}
+
+      {viewOrder && <BulkOrderDetailsModal order={viewOrder} onClose={() => setViewOrder(null)} />}
     </div>
   );
 }

@@ -64,12 +64,27 @@ function SummaryCard({ icon: Icon, iconBg, label, value, sub, valueClass }) {
 
 const initialRange = getPresetRange("Daily");
 
+// A Bulk order starts Pending until someone confirms payment (see
+// process_sale) — Pending is otherwise never used, every non-bulk sale is
+// Paid immediately. An unpaid bulk order still shows as a row (so staff can
+// see it happened) but doesn't count toward the day's totals until it's
+// actually paid — the report shouldn't claim revenue/profit that hasn't
+// been confirmed yet.
+function isPendingBulk(row) {
+  return row.orderType === "Bulk" && row.paymentStatus === "Pending";
+}
+
 function computeTotals(rows) {
-  const totalSales = rows.reduce((sum, r) => sum + r.amount, 0);
-  const totalTransactions = rows.length;
-  const totalItems = rows.reduce((sum, r) => sum + r.items, 0);
+  const countedRows = rows.filter((r) => !isPendingBulk(r));
+  const totalSales = countedRows.reduce((sum, r) => sum + r.amount, 0);
+  const totalTransactions = countedRows.length;
+  const totalItems = countedRows.reduce((sum, r) => sum + r.items, 0);
   const avgSale = totalTransactions ? totalSales / totalTransactions : 0;
-  return { totalSales, totalTransactions, totalItems, avgSale };
+  // Units added before purchase_price was captured have no netProfit (null)
+  // rather than a false 0 — treated as 0 here same as Financial's totals,
+  // so this stays a lower bound rather than pretending those units are free.
+  const totalProfit = countedRows.reduce((sum, r) => sum + (r.netProfit ?? 0), 0);
+  return { totalSales, totalTransactions, totalItems, avgSale, totalProfit };
 }
 
 function Reports() {
@@ -111,19 +126,45 @@ function Reports() {
         txn: s.batchCode,
         date: s.date,
         time: s.time,
+        customer: s.customer,
+        orderType: s.orderType,
+        paymentStatus: s.paymentStatus,
         device: s.device,
+        storage: s.storage,
+        color: s.color,
         items: 1,
         amount: s.total,
+        netProfit: s.netProfit,
         payment: s.payment,
       }));
   }, [generatedRange, salesHistory]);
 
-  const totals = useMemo(() => computeTotals(rows), [rows]);
+  const [buyerFilter, setBuyerFilter] = useState("All");
 
-  const cashRows = useMemo(() => rows.filter((r) => r.payment === "Cash"), [rows]);
+  // Only buyers with at least one Bulk order, scoped to the current report
+  // period — lets a same-day bulk order be isolated from the regular
+  // walk-in sales it'd otherwise be mixed in with.
+  const bulkBuyerNames = useMemo(() => {
+    const names = new Set();
+    rows.forEach((r) => {
+      if (r.orderType === "Bulk" && r.customer && r.customer.trim()) {
+        names.add(r.customer.trim());
+      }
+    });
+    return [...names].sort();
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    if (buyerFilter === "All") return rows;
+    return rows.filter((r) => r.customer && r.customer.trim() === buyerFilter);
+  }, [rows, buyerFilter]);
+
+  const totals = useMemo(() => computeTotals(filteredRows), [filteredRows]);
+
+  const cashRows = useMemo(() => filteredRows.filter((r) => r.payment === "Cash"), [filteredRows]);
   const cashTotals = useMemo(() => computeTotals(cashRows), [cashRows]);
 
-  const displayedRows = viewMode === "cash" ? cashRows : rows;
+  const displayedRows = viewMode === "cash" ? cashRows : filteredRows;
   const displayedTotals = viewMode === "cash" ? cashTotals : totals;
 
   const filteredExpenses = useMemo(() => {
@@ -154,7 +195,9 @@ function Reports() {
     [expensesByCategory]
   );
 
-  const newProfit = totals.totalSales - categoryTotals.General - categoryTotals.Cargo;
+  // Net Profit is margin (revenue minus capital) minus expenses — not
+  // revenue minus expenses, which ignores what the units actually cost.
+  const netProfit = totals.totalProfit - categoryTotals.General - categoryTotals.Cargo;
 
   const handleReportTypeChange = (type) => {
     setReportType(type);
@@ -212,8 +255,9 @@ function Reports() {
   };
 
   // Lets admin add straight from the Expenses/Cargo breakdown modal, already
-  // scoped to that category — stays staff-visible (adminOnly defaults
-  // false), same as the main Add Expense form on this page.
+  // scoped to that category — General/Cargo entries are staff-visible no
+  // matter where they're added from, same as the main Add Expense form on
+  // this page.
   const handleAddExpenseFromModal = async ({ date, description, amount, category }) => {
     await addExpense({ date, description, amount, category });
     loadExpenses();
@@ -272,6 +316,20 @@ function Reports() {
           <div className="w-64">
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Date Range</label>
             <DateRangePicker value={customRange} onChange={handleCustomRangeChange} />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Bulk Buyer</label>
+            <select
+              value={buyerFilter}
+              onChange={(e) => setBuyerFilter(e.target.value)}
+              className="w-44 border border-gray-200 rounded-lg text-sm px-3 py-2.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="All">All Sales</option>
+              {bulkBuyerNames.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
           </div>
 
           <button
@@ -354,15 +412,17 @@ function Reports() {
                   <th className="px-3 py-2.5 font-medium rounded-l-lg">#</th>
                   <th className="px-3 py-2.5 font-medium">Date &amp; Time</th>
                   <th className="px-3 py-2.5 font-medium">Batch Code</th>
+                  <th className="px-3 py-2.5 font-medium">Customer</th>
                   <th className="px-3 py-2.5 font-medium">Unit Sold</th>
                   <th className="px-3 py-2.5 font-medium text-right">Total Amount</th>
+                  <th className="px-3 py-2.5 font-medium text-right">Profit</th>
                   <th className="px-3 py-2.5 font-medium rounded-r-lg">Payment Method</th>
                 </tr>
               </thead>
               <tbody>
                 {displayedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="py-8 text-center text-gray-400">
+                    <td colSpan={8} className="py-8 text-center text-gray-400">
                       No transactions found for the selected date range.
                     </td>
                   </tr>
@@ -373,19 +433,46 @@ function Reports() {
                       {row.date} {row.time}
                     </td>
                     <td className="px-3 py-3 text-gray-700">{row.txn}</td>
-                    <td className="px-3 py-3 text-gray-700">{row.device}</td>
-                    <td className="px-3 py-3 text-gray-800 text-right">{peso(row.amount)}</td>
+                    <td className="px-3 py-3 text-gray-700">{row.customer || "—"}</td>
+                    <td className="px-3 py-3 text-gray-800 font-medium">
+                      {[row.device, row.storage, row.color].filter(Boolean).join(" · ")}
+                      {isPendingBulk(row) && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-100 text-orange-600 align-middle">
+                          Bulk · Pending
+                        </span>
+                      )}
+                    </td>
+                    {isPendingBulk(row) ? (
+                      <>
+                        <td className="px-3 py-3 text-right text-orange-500 italic">Pending</td>
+                        <td className="px-3 py-3 text-right text-orange-500 italic">Pending</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-3 py-3 text-gray-800 text-right">{peso(row.amount)}</td>
+                        <td
+                          className={`px-3 py-3 text-right font-medium ${
+                            row.netProfit == null ? "text-gray-400" : row.netProfit < 0 ? "text-red-500" : "text-green-600"
+                          }`}
+                        >
+                          {row.netProfit != null ? peso(row.netProfit) : "—"}
+                        </td>
+                      </>
+                    )}
                     <td className="px-3 py-3 text-gray-700">{row.payment}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr className="bg-gray-50 font-bold text-gray-800">
-                  <td className="px-3 py-3 rounded-l-lg" colSpan={3}>
+                  <td className="px-3 py-3 rounded-l-lg" colSpan={4}>
                     {viewMode === "cash" ? "TOTAL (CASH)" : "TOTAL"}
                   </td>
                   <td className="px-3 py-3 text-center">{displayedTotals.totalItems}</td>
                   <td className="px-3 py-3 text-right">{peso(displayedTotals.totalSales)}</td>
+                  <td className={`px-3 py-3 text-right ${displayedTotals.totalProfit < 0 ? "text-red-500" : "text-green-600"}`}>
+                    {peso(displayedTotals.totalProfit)}
+                  </td>
                   <td className="px-3 py-3 rounded-r-lg"></td>
                 </tr>
               </tfoot>
@@ -522,8 +609,8 @@ function Reports() {
             <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end print:hidden">
               <div className="w-full max-w-xs space-y-1">
                 <div className="flex justify-between text-sm text-gray-600 px-2 py-1.5">
-                  <span>Profit</span>
-                  <span className="font-medium tabular-nums">{peso(totals.totalSales)}</span>
+                  <span>Store Profit</span>
+                  <span className="font-medium tabular-nums">{peso(totals.totalProfit)}</span>
                 </div>
                 <button
                   type="button"
@@ -543,11 +630,11 @@ function Reports() {
                 </button>
                 <div
                   className={`flex justify-between text-base font-bold px-2 py-2 mt-1 border-t border-gray-100 ${
-                    newProfit < 0 ? "text-red-500" : "text-gray-800"
+                    netProfit < 0 ? "text-red-500" : "text-gray-800"
                   }`}
                 >
-                  <span>New Profit</span>
-                  <span className="tabular-nums">{peso(newProfit)}</span>
+                  <span>Net Profit</span>
+                  <span className="tabular-nums">{peso(netProfit)}</span>
                 </div>
               </div>
             </div>
@@ -558,7 +645,10 @@ function Reports() {
       {/* Note */}
       <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-700 print:hidden">
         <span className="font-medium">Note:</span>
-        <span>This report is based on the selected date range.</span>
+        <span>
+          This report is based on the selected date range. An unpaid Bulk order shows as a row but its amount
+          and profit stay out of the totals until it's marked Paid (Supplier Payables → Bulk Buyers).
+        </span>
       </div>
 
       {expenseModalCategory && (

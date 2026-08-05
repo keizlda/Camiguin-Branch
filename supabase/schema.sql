@@ -318,8 +318,8 @@ create index on public.devices (bulk_order_shell_id);
 -- More than 3 total units (cart items, since each is always quantity 1)
 -- classifies the sale as Bulk and starts it Pending — bulk buyers usually
 -- pay by check, which isn't confirmed the moment the sale is rung up.
--- Decided here rather than trusting the caller, same as every other
--- business rule enforced inside these RPCs.
+-- p_force_bulk lets staff opt a smaller sale into the same treatment (e.g.
+-- a single-unit wholesale sale) instead of relying on the count alone.
 create function public.process_sale(
   p_customer_name text,
   p_salesperson_id uuid,
@@ -329,7 +329,8 @@ create function public.process_sale(
   p_total_amount numeric,
   p_cart_items jsonb, -- [{"device_id": "...", "price": 123.45}, ...]
   p_down_payment numeric default null,
-  p_balance numeric default null
+  p_balance numeric default null,
+  p_force_bulk boolean default false
 )
 returns uuid
 language plpgsql
@@ -345,8 +346,8 @@ declare
   v_payment_status text;
 begin
   v_item_count := jsonb_array_length(p_cart_items);
-  v_order_type := case when v_item_count > 3 then 'Bulk' else 'Regular' end;
-  v_payment_status := case when v_item_count > 3 then 'Pending' else 'Paid' end;
+  v_order_type := case when v_item_count > 3 or p_force_bulk then 'Bulk' else 'Regular' end;
+  v_payment_status := case when v_item_count > 3 or p_force_bulk then 'Pending' else 'Paid' end;
 
   insert into public.sales (
     customer_name, salesperson_id, payment_method, reference_number, notes,

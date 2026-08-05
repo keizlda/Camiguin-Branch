@@ -157,17 +157,16 @@ function Sidebar({ open, onClose }) {
             Reports
           </NavLink>
 
+          <NavLink to="/supplier-payables" className={linkClass} onClick={onClose}>
+            <Wallet size={18} />
+            Supplier Payables
+          </NavLink>
+
           {isAdmin && (
-            <>
-              <NavLink to="/supplier-payables" className={linkClass} onClick={onClose}>
-                <Wallet size={18} />
-                Supplier Payables
-              </NavLink>
-              <NavLink to="/financial" className={linkClass} onClick={onClose}>
-                <Coins size={18} />
-                Financial
-              </NavLink>
-            </>
+            <NavLink to="/financial" className={linkClass} onClick={onClose}>
+              <Coins size={18} />
+              Financial
+            </NavLink>
           )}
         </nav>
 

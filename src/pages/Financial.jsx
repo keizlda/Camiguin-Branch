@@ -18,6 +18,14 @@ const REPORT_TYPES = ["Daily", "Weekly", "Monthly", "Quarterly", "Annually", "Cu
 // defective/return pipeline.
 const UNSOLD_STATUSES = ["Available", "Reserved", "Supplier Defective", "Customer Returned", "Returned"];
 
+// A Bulk order starts Pending until someone confirms payment (see
+// process_sale) — same rule as Reports: it still shows as a row in the
+// ledger so staff can see it happened, but its Capital/Disposal/Net Profit
+// stay out of the ledger's totals until it's actually paid.
+function isPendingBulk(row) {
+  return row.orderType === "Bulk" && row.paymentStatus === "Pending";
+}
+
 const peso = (n) =>
   "₱" + n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -124,9 +132,10 @@ function Financial() {
   }, [generatedRange, salesHistory]);
 
   const totals = useMemo(() => {
-    const totalCapital = rows.reduce((sum, r) => sum + (r.purchasePrice ?? 0), 0);
-    const totalDisposal = rows.reduce((sum, r) => sum + r.total, 0);
-    const totalNetProfit = rows.reduce((sum, r) => sum + (r.netProfit ?? 0), 0);
+    const countedRows = rows.filter((r) => !isPendingBulk(r));
+    const totalCapital = countedRows.reduce((sum, r) => sum + (r.purchasePrice ?? 0), 0);
+    const totalDisposal = countedRows.reduce((sum, r) => sum + r.total, 0);
+    const totalNetProfit = countedRows.reduce((sum, r) => sum + (r.netProfit ?? 0), 0);
     return { totalCapital, totalDisposal, totalNetProfit };
   }, [rows]);
 
@@ -399,18 +408,33 @@ function Financial() {
                     <td className="px-3 py-3 text-gray-700 whitespace-nowrap">{row.batchCode}</td>
                     <td className="px-3 py-3 text-gray-800 font-medium">
                       {[row.device, row.storage, row.color].filter(Boolean).join(" · ")}
+                      {isPendingBulk(row) && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-100 text-orange-600 align-middle">
+                          Bulk · Pending
+                        </span>
+                      )}
                     </td>
-                    <td className="px-3 py-3 text-right text-gray-700">
-                      {row.purchasePrice != null ? peso(row.purchasePrice) : "—"}
-                    </td>
-                    <td className="px-3 py-3 text-right text-gray-800">{peso(row.total)}</td>
-                    <td
-                      className={`px-3 py-3 text-right font-medium ${
-                        row.netProfit == null ? "text-gray-400" : row.netProfit < 0 ? "text-red-500" : "text-green-600"
-                      }`}
-                    >
-                      {row.netProfit != null ? peso(row.netProfit) : "—"}
-                    </td>
+                    {isPendingBulk(row) ? (
+                      <>
+                        <td className="px-3 py-3 text-right text-orange-500 italic">Pending</td>
+                        <td className="px-3 py-3 text-right text-orange-500 italic">Pending</td>
+                        <td className="px-3 py-3 text-right text-orange-500 italic">Pending</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-3 py-3 text-right text-gray-700">
+                          {row.purchasePrice != null ? peso(row.purchasePrice) : "—"}
+                        </td>
+                        <td className="px-3 py-3 text-right text-gray-800">{peso(row.total)}</td>
+                        <td
+                          className={`px-3 py-3 text-right font-medium ${
+                            row.netProfit == null ? "text-gray-400" : row.netProfit < 0 ? "text-red-500" : "text-green-600"
+                          }`}
+                        >
+                          {row.netProfit != null ? peso(row.netProfit) : "—"}
+                        </td>
+                      </>
+                    )}
                     <td className="px-3 py-3 text-gray-700 whitespace-nowrap">{row.supplier || "—"}</td>
                   </tr>
                 ))
@@ -472,11 +496,6 @@ function Financial() {
                     {e.category === "Personal" && (
                       <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-pink-100 text-pink-700 align-middle">
                         Personal
-                      </span>
-                    )}
-                    {e.adminOnly && (
-                      <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-500 align-middle">
-                        Admin Only
                       </span>
                     )}
                   </td>
@@ -660,7 +679,9 @@ function Financial() {
         <span className="font-medium">Note:</span>
         <span>
           Capital comes from each unit's recorded purchase price — units added before that field existed show "—"
-          until backfilled via Edit Device.
+          until backfilled via Edit Device. An unpaid Bulk order shows as a row in the ledger but its
+          Capital/Disposal/Net Profit stay out of the totals until it's marked Paid (Supplier Payables → Bulk
+          Buyers).
         </span>
       </div>
 

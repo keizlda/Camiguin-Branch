@@ -11,13 +11,15 @@ function mapExpense(e) {
   };
 }
 
-// Reports is reachable by any role, so it only ever shows the shared
-// (non-admin-only) expenses — anything logged from Financial stays out.
+// Reports is reachable by any role, so it only ever shows General/Cargo —
+// the two categories staff are meant to see, regardless of whether the
+// entry was logged here or from Financial by an admin. Prulife/Personal
+// stay out entirely; they're Financial-only categories.
 export async function getExpenses() {
   const { data, error } = await supabase
     .from("expenses")
     .select("id, expense_date, description, amount, admin_only, category")
-    .eq("admin_only", false)
+    .in("category", ["General", "Cargo"])
     .order("expense_date", { ascending: false });
 
   if (error) throw error;

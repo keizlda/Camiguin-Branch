@@ -157,6 +157,7 @@ export async function processSale({
   cartItems,
   downPayment,
   balance,
+  forceBulk,
 }) {
   const {
     data: { session },
@@ -174,6 +175,7 @@ export async function processSale({
     p_cart_items: cartItems.map((item) => ({ device_id: item.id, price: item.price })),
     p_down_payment: downPayment ?? null,
     p_balance: balance ?? null,
+    p_force_bulk: forceBulk ?? false,
   });
   if (error) throw error;
 }

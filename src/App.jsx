@@ -44,10 +44,7 @@ function App() {
             <Route path="/sales/*" element={<Sales />} />
             <Route path="/after-sales/*" element={<AfterSales />} />
             <Route path="/reports" element={<Reports />} />
-            <Route
-              path="/supplier-payables"
-              element={<RequireAdmin><SupplierPayables /></RequireAdmin>}
-            />
+            <Route path="/supplier-payables" element={<SupplierPayables />} />
             <Route
               path="/financial"
               element={<RequireAdmin><Financial /></RequireAdmin>}

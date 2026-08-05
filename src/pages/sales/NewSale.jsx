@@ -80,6 +80,7 @@ function NewSale() {
   const [showQuickAdd, setShowQuickAdd] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [swapTradeIn, setSwapTradeIn] = useState(null);
+  const [forceBulk, setForceBulk] = useState(false);
 
   const cartIds = useMemo(() => new Set(cart.map((c) => c.id)), [cart]);
 
@@ -160,12 +161,18 @@ function NewSale() {
 
   const installmentEligible = cart.length > 0 && cart.every((c) => !NON_INSTALLMENT_CATEGORIES.includes(c.category));
 
+  // Bulk either happens automatically past the unit-count threshold, or is
+  // opted into manually via the toggle — e.g. a single-unit wholesale sale
+  // that should still be tracked as Bulk even though the count alone
+  // wouldn't trigger it.
+  const isBulk = cart.length > BULK_THRESHOLD || forceBulk;
+
   // Check only shows up once the order qualifies as Bulk, and Installment
   // only once every item in the cart is an actual device — if either
   // selection stops qualifying, fall back to Cash so a hidden, stale
   // selection can't silently go through.
   useEffect(() => {
-    if (payment === "Check" && cart.length <= BULK_THRESHOLD) {
+    if (payment === "Check" && !isBulk) {
       setPayment("Cash");
       setReferenceNumber("N/A");
     }
@@ -175,7 +182,7 @@ function NewSale() {
       setDownPayment("");
       setBalance("");
     }
-  }, [cart.length, payment, installmentEligible]);
+  }, [isBulk, payment, installmentEligible]);
 
   const totalCapital = cart.reduce((sum, c) => sum + (Number(c.purchasePrice) || 0), 0);
   const total = cart.reduce((sum, c) => sum + (Number(c.actualPrice) || 0), 0);
@@ -245,6 +252,7 @@ function NewSale() {
         cartItems: cart.map((c) => ({ ...c, price: Number(c.actualPrice) || 0 })),
         downPayment: FINANCING_METHODS.includes(payment) && downPayment !== "" ? Number(downPayment) : null,
         balance: FINANCING_METHODS.includes(payment) && balance !== "" ? Number(balance) : null,
+        forceBulk,
       });
 
       showToast("Sale processed.");
@@ -255,6 +263,7 @@ function NewSale() {
       setNotes("");
       setCustomerSearch("");
       setSwapTradeIn(null);
+      setForceBulk(false);
       loadAvailableDevices();
     } catch (err) {
       setError(err.message || "Failed to process sale. Please try again.");
@@ -489,12 +498,35 @@ function NewSale() {
           </div>
         </div>
 
-        {cart.length > BULK_THRESHOLD && (
+        <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-100">
+          <div>
+            <p className="text-sm font-medium text-gray-700">Bulk Order</p>
+            <p className="text-xs text-gray-400">Mark this sale as Bulk even if it's just one unit.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setForceBulk((v) => !v)}
+            className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${
+              forceBulk ? "bg-blue-600" : "bg-gray-300"
+            }`}
+            title={forceBulk ? "Bulk — click to unmark" : "Not marked as Bulk — click to mark"}
+          >
+            <span
+              className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                forceBulk ? "translate-x-4" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </div>
+
+        {isBulk && (
           <div className="flex items-start gap-2 bg-orange-50 border border-orange-100 rounded-lg p-2.5 mt-3">
             <AlertTriangle size={14} className="text-orange-500 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-orange-700">
-              {cart.length} units — this will be recorded as a <strong>Bulk</strong> order with payment{" "}
-              <strong>Pending</strong>, regardless of payment method.
+              {cart.length > BULK_THRESHOLD
+                ? `${cart.length} units — this will be recorded as a `
+                : "This will be recorded as a "}
+              <strong>Bulk</strong> order with payment <strong>Pending</strong>, regardless of payment method.
             </p>
           </div>
         )}
@@ -523,7 +555,7 @@ function NewSale() {
             })}
           </div>
 
-          {cart.length > BULK_THRESHOLD && (
+          {isBulk && (
             <button
               onClick={() => handlePaymentChange("Check")}
               className={`w-full mt-2 flex items-center gap-2 px-3 py-2 rounded-lg text-sm border ${

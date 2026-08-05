@@ -71,10 +71,7 @@ function ExpenseCategoryModal({ category, entries, isAdmin, onRemove, onAdd, onC
                 {entries.map((e) => (
                   <tr key={e.id} className="border-b border-gray-50">
                     <td className="py-2.5 text-gray-700 whitespace-nowrap">{e.date}</td>
-                    <td className="py-2.5 text-gray-800 font-medium">
-                      {e.description}
-                      {e.adminOnly && <span className="ml-2 text-xs text-gray-300 font-normal">(Admin Only)</span>}
-                    </td>
+                    <td className="py-2.5 text-gray-800 font-medium">{e.description}</td>
                     <td className="py-2.5 text-right text-red-500">-{peso(e.amount)}</td>
                     {isAdmin && (
                       <td className="py-2.5 text-right">
