@@ -32,7 +32,7 @@ function PrintLabelsModal({ devices, onClose }) {
 
         <div className="px-5 py-4 max-h-[50vh] overflow-y-auto">
           <p className="text-xs text-gray-400 mb-3">
-            Prints as a sheet of cut-apart labels (2×1 in each, 8 per page) — batch code as a Code128 barcode
+            Prints as a sheet of cut-apart labels (3×1.2 in each, 8 per page) — batch code as a Code128 barcode
             with the code printed underneath.
           </p>
           <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
@@ -66,7 +66,7 @@ function PrintLabelsModal({ devices, onClose }) {
     <div className="hidden print:block label-sheet">
       {devices.map((d) => (
         <div key={d.id} className="label-cell flex flex-col items-center justify-center px-2">
-          <Barcode value={d.batchCode} height={28} className="w-full h-auto" />
+          <Barcode value={d.batchCode} height={36} className="w-full h-auto" />
         </div>
       ))}
     </div>
