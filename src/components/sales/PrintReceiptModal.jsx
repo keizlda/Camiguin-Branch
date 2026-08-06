@@ -20,15 +20,23 @@ const paymentStatusPillClass = {
 // Not a stored/sequential invoice number — this app's sales are identified
 // by UUID, not a counter. Derived entirely from real fields (the sale's own
 // date + a slice of its real id) purely for a shorter, receipt-friendly
-// reference and barcode value, not a fabricated fact.
-function formatSaleNumber(soldAt, saleId) {
+// reference, not a fabricated fact.
+//
+// label (shown as text) and barcodeValue (what's actually encoded) are
+// deliberately different lengths: a receipt's printable width is much
+// narrower than a device label's, and "SALE-MMDDYY-XXXXXX" verified as
+// unscannable at any realistic receipt width once quiet-zone + narrow-roll
+// math is accounted for. Dropping the "SALE-" text and dashes from the
+// encoded value alone (not the displayed one) was enough to bring it back
+// into the range that decodes reliably.
+function getSaleReference(soldAt, saleId) {
   if (!soldAt || !saleId) return null;
   const d = new Date(soldAt);
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   const yy = String(d.getFullYear()).slice(-2);
   const suffix = saleId.replace(/-/g, "").slice(-6).toUpperCase();
-  return `SALE-${mm}${dd}${yy}-${suffix}`;
+  return { label: `SALE-${mm}${dd}${yy}-${suffix}`, barcodeValue: `${mm}${dd}${yy}${suffix}` };
 }
 
 // receipt shape: { saleId, soldAt, customerName, customerPhone, salesperson,
@@ -44,11 +52,11 @@ function formatSaleNumber(soldAt, saleId) {
 // already hit once with a naive print:hidden wrapper).
 function PrintReceiptModal({ receipt, onClose }) {
   const subtotal = receipt.items.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
-  const saleNumber = formatSaleNumber(receipt.soldAt, receipt.saleId);
+  const saleReference = getSaleReference(receipt.soldAt, receipt.saleId);
   const handlePrint = () => window.print();
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 print:static print:inset-auto print:block print:bg-transparent print:p-0 print:z-auto">
+    <div className="receipt-page fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 print:static print:inset-auto print:block print:bg-transparent print:p-0 print:z-auto">
       <div className="bg-white rounded-xl w-full max-w-md shadow-xl print:shadow-none print:rounded-none print:max-w-none print:w-auto">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 print:hidden">
           <div className="flex items-center gap-2">
@@ -60,9 +68,14 @@ function PrintReceiptModal({ receipt, onClose }) {
           </button>
         </div>
 
-        {/* The receipt itself — identical on screen and on paper */}
+        {/* The receipt itself — identical on screen and on paper. Fixed
+            320px width on screen (reads like a receipt in the preview);
+            print:w-full instead of a fixed width, since the actual physical
+            width comes from the thermal roll's @page size (see
+            .receipt-page in index.css) — a hardcoded pixel width here would
+            fight that instead of filling whatever the roll's width is. */}
         <div
-          className="mx-auto w-[320px] max-w-full p-5 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
+          className="mx-auto w-[320px] max-w-full p-5 print:w-full print:p-1 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
           style={{ fontFamily: "'Courier New', Courier, monospace" }}
         >
           <div className="text-center">
@@ -185,12 +198,12 @@ function PrintReceiptModal({ receipt, onClose }) {
             )}
           </div>
 
-          {saleNumber && (
+          {saleReference && (
             <>
               <div className="border-t border-dashed border-gray-400 my-2.5" />
               <div className="text-center">
-                <Barcode value={saleNumber} height={30} className="mx-auto" />
-                <p className="text-[9px] tracking-widest mt-0.5">{saleNumber}</p>
+                <Barcode value={saleReference.barcodeValue} height={30} className="mx-auto max-w-full h-auto" />
+                <p className="text-[9px] tracking-widest mt-0.5">{saleReference.label}</p>
               </div>
             </>
           )}

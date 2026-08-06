@@ -62,3 +62,23 @@
     break-after: page;
   }
 }
+
+/* Printed sales receipt — sized for an 80mm thermal receipt printer's
+   continuous roll, not a full sheet. Uses a CSS named page (page: receipt)
+   so it gets its own @page size independent of the plain @media print
+   @page rule above (which stays portrait/Letter-ish for Reports/Labels) —
+   supported in Chrome/Edge, which is what thermal printer drivers are
+   built for anyway. If a browser doesn't support named pages, printing
+   still works, it just falls back to the default @page above; the
+   receipt's own content width is percentage-based (not a fixed pixel
+   width) so it still reflows to fit whatever page width actually applies. */
+@media print {
+  @page receipt {
+    size: 80mm auto;
+    margin: 3mm;
+  }
+
+  .receipt-page {
+    page: receipt;
+  }
+}
