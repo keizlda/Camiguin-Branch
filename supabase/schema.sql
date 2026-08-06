@@ -1064,20 +1064,27 @@ create policy "bulk_order_shells_all_authenticated" on public.bulk_order_shells
 -- exact spelling. Every category from here on (Accessories/Repair Parts
 -- included, plus every Android brand) uses the same spelling in both name
 -- and db_value — there's no plural-form quirk to carry forward for those.
+-- Android brand storages are RAM+Storage combo labels (e.g. '4GB+128GB'),
+-- not storage-only — these budget models are commonly stocked in several
+-- RAM variants of the same storage size, which a storage-only label can't
+-- distinguish. Set from the store's actual 2026-08-07 stock list; adjust
+-- via Manage Catalog as new combos come in rather than editing here.
 insert into public.categories (name, db_value, brand, prefix, storages, is_accessory_like) values
-  ('iPhone', 'iPhones', 'Apple', 'IP', ARRAY['128GB','256GB','512GB','1TB'], false),
+  ('iPhone', 'iPhones', 'Apple', 'IP', ARRAY['32GB','128GB','256GB','512GB','1TB'], false),
   ('iPad', 'iPads', 'Apple', 'IPD', ARRAY['64GB','128GB','256GB','512GB'], false),
   ('Apple Watch', 'Apple Watches', 'Apple', 'AW', ARRAY['-'], false),
   ('MacBook', 'MacBooks', 'Apple', 'MB', ARRAY['256GB','512GB','1TB','2TB'], false),
   ('Accessories', 'Accessories', 'Various', 'AC', ARRAY['N/A'], true),
   ('Repair Parts', 'Repair Parts', 'Various', 'RP', ARRAY['N/A'], true),
-  ('Samsung', 'Samsung', 'Samsung', 'SS', ARRAY['64GB','128GB','256GB','512GB'], false),
-  ('Vivo', 'Vivo', 'Vivo', 'VV', ARRAY['64GB','128GB','256GB','512GB'], false),
-  ('Realme', 'Realme', 'Realme', 'RM', ARRAY['64GB','128GB','256GB','512GB'], false),
-  ('Redmi', 'Redmi', 'Redmi', 'RD', ARRAY['64GB','128GB','256GB','512GB'], false),
-  ('Infinix', 'Infinix', 'Infinix', 'IF', ARRAY['64GB','128GB','256GB','512GB'], false),
-  ('Tecno', 'Tecno', 'Tecno', 'TC', ARRAY['64GB','128GB','256GB','512GB'], false)
-on conflict (name) do nothing;
+  ('Samsung', 'Samsung', 'Samsung', 'SS', ARRAY['4GB+128GB','6GB+128GB','8GB+256GB'], false),
+  ('Vivo', 'Vivo', 'Vivo', 'VV', ARRAY['4GB+64GB','4GB+128GB','8GB+256GB','12GB+256GB'], false),
+  ('Realme', 'Realme', 'Realme', 'RM', ARRAY['4GB+128GB','4GB+256GB','8GB+256GB'], false),
+  ('Redmi', 'Redmi', 'Redmi', 'RD', ARRAY['3GB+64GB','4GB+64GB','4GB+128GB','4GB+256GB','8GB+256GB'], false),
+  ('Infinix', 'Infinix', 'Infinix', 'IF', ARRAY['4GB+128GB','8GB+256GB','12GB+256GB'], false),
+  ('Tecno', 'Tecno', 'Tecno', 'TC', ARRAY['64GB','128GB','256GB','512GB'], false),
+  ('Honor', 'Honor', 'Honor', 'HN', ARRAY['6GB+128GB','8GB+256GB'], false),
+  ('Itel', 'Itel', 'Itel', 'IT', ARRAY['N/A','2GB+64GB','4GB+128GB'], false)
+on conflict (name) do update set storages = excluded.storages;
 
 -- ============================================================
 -- SEED — default product catalog (models + colors)
@@ -1143,4 +1150,51 @@ insert into public.product_models (category, name, colors) values
   ('Repair Parts', 'iPad Battery', ARRAY['N/A']),
   ('Repair Parts', 'MacBook Battery', ARRAY['N/A']),
   ('Repair Parts', 'Apple Watch Battery', ARRAY['N/A'])
+on conflict (category, name) do nothing;
+
+-- Real stock as of 2026-08-07. colors seeded as ['N/A'] — a working
+-- placeholder (not a claim about real color options) so Add Device isn't
+-- blocked with an empty color dropdown; swap for real colors via Manage
+-- Catalog as actual stock color variants are confirmed.
+insert into public.product_models (category, name, colors) values
+  ('iPhone', 'iPhone 7', ARRAY['N/A']),
+
+  ('Redmi', 'Redmi A7', ARRAY['N/A']),
+  ('Redmi', 'Redmi A7 Pro', ARRAY['N/A']),
+  ('Redmi', 'Redmi 15C 5G', ARRAY['N/A']),
+  ('Redmi', 'Redmi Note 15', ARRAY['N/A']),
+  ('Redmi', 'Redmi Pad 2', ARRAY['N/A']),
+
+  ('Vivo', 'Vivo Y05', ARRAY['N/A']),
+  ('Vivo', 'Vivo Y11d', ARRAY['N/A']),
+  ('Vivo', 'Vivo V70 FE', ARRAY['N/A']),
+
+  ('Samsung', 'Galaxy A07', ARRAY['N/A']),
+  ('Samsung', 'Galaxy A17', ARRAY['N/A']),
+  ('Samsung', 'Galaxy A27', ARRAY['N/A']),
+  ('Samsung', 'Galaxy A16', ARRAY['N/A']),
+  ('Samsung', 'Galaxy A37', ARRAY['N/A']),
+  ('Samsung', 'Galaxy A57', ARRAY['N/A']),
+
+  ('Infinix', 'Infinix Smart 20', ARRAY['N/A']),
+  ('Infinix', 'Infinix Hot 70', ARRAY['N/A']),
+  ('Infinix', 'Infinix Hot 60 Pro+', ARRAY['N/A']),
+  ('Infinix', 'Infinix Note Edge', ARRAY['N/A']),
+  ('Infinix', 'Infinix Note 60 Pro', ARRAY['N/A']),
+  ('Infinix', 'Infinix GT 50 Pro', ARRAY['N/A']),
+
+  ('Realme', 'Realme Note 80', ARRAY['N/A']),
+  ('Realme', 'Realme Note 70', ARRAY['N/A']),
+  ('Realme', 'Realme C100i', ARRAY['N/A']),
+  ('Realme', 'Realme C85 5G', ARRAY['N/A']),
+  ('Realme', 'Realme C100', ARRAY['N/A']),
+  ('Realme', 'Realme 16', ARRAY['N/A']),
+  ('Realme', 'Realme Techlife Neo Pad', ARRAY['N/A']),
+
+  ('Honor', 'Honor X8D', ARRAY['N/A']),
+  ('Honor', 'Honor Pad X9a', ARRAY['N/A']),
+
+  ('Itel', 'Itel Power 120', ARRAY['N/A']),
+  ('Itel', 'Itel A100c', ARRAY['N/A']),
+  ('Itel', 'Itel Vista Tab 30s', ARRAY['N/A'])
 on conflict (category, name) do nothing;
