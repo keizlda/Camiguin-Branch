@@ -91,20 +91,21 @@ function PrintReceiptModal({ receipt, onClose }) {
 
         {/* The receipt itself — identical on screen and on paper. Fixed
             320px width on screen (reads like a receipt in the preview).
-            print was originally print:w-full, trusting the thermal roll's
-            @page size (.receipt-page in index.css) to constrain it — real
-            hardware testing showed the driver doesn't honor that, so
-            content rendered against a much wider assumed canvas and
-            anything past the paper's real printable area (long values,
-            the total) never printed at all. Fixed with an explicit,
-            conservative 46mm width — confirmed on real hardware this
-            alone resolved the data loss. mx-auto centers reliably now
-            that the width is a small known value; it wasn't safe to
-            trust before when content was unboundedly wide (w-full) and
-            could've been centered relative to a canvas far wider than
-            the real paper. */}
+            print width is an explicit, conservative 46mm — confirmed on
+            real hardware this resolved the earlier data-loss bug (values
+            running off the page). mx-auto (screen only) centers reliably
+            since the width is a small known value there.
+            For print specifically, mx-auto left the margins visibly
+            unequal on real hardware (left margin smaller than right) —
+            CSS auto-centering can only split space evenly around content,
+            it can't correct for the driver/print head not mapping "left
+            edge of the canvas" to the same physical position on both
+            sides. Replaced with an explicit left margin nudge instead,
+            content width unchanged so the barcode's own rendered size
+            isn't affected. This 4mm is an estimate from the photo, not a
+            measurement — may need another small nudge once printed. */}
         <div
-          className="mx-auto w-[320px] max-w-full p-5 print:w-[46mm] print:p-1 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
+          className="mx-auto w-[320px] max-w-full p-5 print:w-[46mm] print:ml-[4mm] print:mr-0 print:p-1 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
           style={{ fontFamily: "'Courier New', Courier, monospace" }}
         >
           <div className="text-center">
