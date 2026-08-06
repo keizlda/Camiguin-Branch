@@ -91,20 +91,16 @@ function PrintReceiptModal({ receipt, onClose }) {
 
         {/* The receipt itself — identical on screen and on paper. Fixed
             320px width on screen (reads like a receipt in the preview).
-            print was originally print:w-full, trusting the thermal roll's
-            @page size (.receipt-page in index.css) to constrain it — real
-            hardware testing showed the driver doesn't honor that, so
-            content rendered against a much wider assumed canvas and
-            anything past the paper's real printable area (long values,
-            the total) never printed at all. Fixed with an explicit,
-            conservative 46mm width — confirmed on real hardware this
-            alone resolved the data loss. mx-auto centers reliably now
-            that the width is a small known value; it wasn't safe to
-            trust before when content was unboundedly wide (w-full) and
-            could've been centered relative to a canvas far wider than
-            the real paper. */}
+            Print content has repeatedly shown right-side cutoff on real
+            hardware even after narrowing to 46mm and centering, on prints
+            that vary run to run despite unchanged code — pointing at the
+            true printable area being narrower/positioned differently than
+            assumed, not something CSS alone can fully pin down blind.
+            Pushed flush left (no centering) instead of guessing another
+            centered width, so whatever margin exists is on the right,
+            away from where content has been getting cut. */}
         <div
-          className="mx-auto w-[320px] max-w-full p-5 print:w-[46mm] print:p-1 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
+          className="mx-auto w-[320px] max-w-full p-5 print:w-[46mm] print:ml-0 print:mr-auto print:p-1 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
           style={{ fontFamily: "'Courier New', Courier, monospace" }}
         >
           <div className="text-center">
