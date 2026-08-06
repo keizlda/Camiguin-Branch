@@ -95,16 +95,16 @@ function PrintReceiptModal({ receipt, onClose }) {
             @page size (.receipt-page in index.css) to constrain it — real
             hardware testing showed the driver doesn't honor that, so
             content rendered against a much wider assumed canvas and
-            anything past the paper's real ~46mm printable area (long
-            values, the total) never printed at all. Now an explicit,
-            conservative 46mm and left-aligned (not centered) for print —
-            centering within a canvas the driver thinks is wider than the
-            real paper is what produced the "off-center" printed result,
-            since content only reliably lands where the driver maps
-            position 0 to the actual print head, not wherever CSS auto-
-            margins would centre it within its own (wrong) assumption. */}
+            anything past the paper's real printable area (long values,
+            the total) never printed at all. Fixed with an explicit,
+            conservative 46mm width — confirmed on real hardware this
+            alone resolved the data loss. mx-auto centers reliably now
+            that the width is a small known value; it wasn't safe to
+            trust before when content was unboundedly wide (w-full) and
+            could've been centered relative to a canvas far wider than
+            the real paper. */}
         <div
-          className="mx-auto w-[320px] max-w-full p-5 print:w-[46mm] print:mx-0 print:p-1 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
+          className="mx-auto w-[320px] max-w-full p-5 print:w-[46mm] print:p-1 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
           style={{ fontFamily: "'Courier New', Courier, monospace" }}
         >
           <div className="text-center">
