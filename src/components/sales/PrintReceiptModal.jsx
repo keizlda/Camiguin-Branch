@@ -24,19 +24,23 @@ const paymentStatusPillClass = {
 //
 // label (shown as text) and barcodeValue (what's actually encoded) are
 // deliberately different lengths: a receipt's printable width is much
-// narrower than a device label's, and "SALE-MMDDYY-XXXXXX" verified as
-// unscannable at any realistic receipt width once quiet-zone + narrow-roll
-// math is accounted for. Dropping the "SALE-" text and dashes from the
-// encoded value alone (not the displayed one) was enough to bring it back
-// into the range that decodes reliably.
+// narrower than a device label's. Verified by simulated decode at the
+// actual usable width of a 58mm thermal roll (the narrowest paper this
+// app supports) — a 12-character encoded value already failed there, so
+// the barcode carries an 8-character value (MMDD + 4 hex chars of the
+// real sale id) while the full "SALE-MMDDYY-XXXXXX" still prints as
+// human-readable text underneath.
 function getSaleReference(soldAt, saleId) {
   if (!soldAt || !saleId) return null;
   const d = new Date(soldAt);
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   const yy = String(d.getFullYear()).slice(-2);
-  const suffix = saleId.replace(/-/g, "").slice(-6).toUpperCase();
-  return { label: `SALE-${mm}${dd}${yy}-${suffix}`, barcodeValue: `${mm}${dd}${yy}${suffix}` };
+  const fullSuffix = saleId.replace(/-/g, "").slice(-6).toUpperCase();
+  return {
+    label: `SALE-${mm}${dd}${yy}-${fullSuffix}`,
+    barcodeValue: `${mm}${dd}${fullSuffix.slice(-4)}`,
+  };
 }
 
 // receipt shape: { saleId, soldAt, customerName, customerPhone, salesperson,
