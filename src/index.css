@@ -65,16 +65,21 @@
 
 /* Printed sales receipt — sized for the store's 58mm thermal receipt
    printer's continuous roll, not a full sheet. Uses a CSS named page
-   (page: receipt) so it gets its own @page size independent of the plain
-   @media print @page rule above (which stays portrait/Letter-ish for
-   Reports/Labels) — supported in Chrome/Edge, which is what thermal
-   printer drivers are built for anyway. If a browser doesn't support
-   named pages, printing still works, it just falls back to the default
-   @page above; the receipt's own content width is percentage-based (not
-   a fixed pixel width) so it still reflows to fit whatever page width
-   actually applies. The sale-reference barcode's encoded value was
-   shortened specifically to still decode reliably at this width — see
-   getSaleReference in PrintReceiptModal.jsx. */
+   (page: receipt) as a best-effort hint independent of the plain @media
+   print @page rule above (which stays portrait/Letter-ish for
+   Reports/Labels).
+   This alone turned out not to be enough on real hardware: the actual
+   thermal driver didn't honor it, rendering against a much wider assumed
+   canvas and silently dropping anything past the paper's real printable
+   width instead of wrapping it. The receipt's own content (in
+   PrintReceiptModal.jsx) now also sets an explicit, conservative 46mm
+   width directly (not a fixed pixel value, not percentage-based — mm,
+   so it doesn't depend on this @page rule being respected at all) and
+   left-aligns rather than centers, since centering only makes sense
+   relative to a canvas width the driver actually agrees on. The
+   sale-reference barcode's encoded value was shortened to still decode
+   reliably at that 46mm width — see getSaleReference in
+   PrintReceiptModal.jsx. */
 @media print {
   @page receipt {
     size: 58mm auto;

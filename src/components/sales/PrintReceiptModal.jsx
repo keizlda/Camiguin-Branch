@@ -17,6 +17,23 @@ const paymentStatusPillClass = {
   Paid: "bg-green-100 text-green-800",
 };
 
+// A real printed test revealed the thermal driver wasn't honoring the
+// named @page width — content rendered against a much wider assumed
+// canvas, so anything past the paper's actual ~46mm printable area (long
+// payment method values, longer totals) never printed at all rather than
+// wrapping. flex-wrap lets the value drop to its own line instead of
+// running off the page when it doesn't fit next to the label; min-w-0
+// overrides flex's default min-width:auto, which otherwise blocks a flex
+// child from shrinking/wrapping even when its sibling needs the room.
+function Row({ label, children }) {
+  return (
+    <div className="flex flex-wrap justify-between gap-x-2">
+      <span className="text-gray-500">{label}</span>
+      <span className="min-w-0 text-right break-words">{children}</span>
+    </div>
+  );
+}
+
 // Not a stored/sequential invoice number — this app's sales are identified
 // by UUID, not a counter. Derived entirely from real fields (the sale's own
 // date + a slice of its real id) purely for a shorter, receipt-friendly
@@ -73,13 +90,21 @@ function PrintReceiptModal({ receipt, onClose }) {
         </div>
 
         {/* The receipt itself — identical on screen and on paper. Fixed
-            320px width on screen (reads like a receipt in the preview);
-            print:w-full instead of a fixed width, since the actual physical
-            width comes from the thermal roll's @page size (see
-            .receipt-page in index.css) — a hardcoded pixel width here would
-            fight that instead of filling whatever the roll's width is. */}
+            320px width on screen (reads like a receipt in the preview).
+            print was originally print:w-full, trusting the thermal roll's
+            @page size (.receipt-page in index.css) to constrain it — real
+            hardware testing showed the driver doesn't honor that, so
+            content rendered against a much wider assumed canvas and
+            anything past the paper's real ~46mm printable area (long
+            values, the total) never printed at all. Now an explicit,
+            conservative 46mm and left-aligned (not centered) for print —
+            centering within a canvas the driver thinks is wider than the
+            real paper is what produced the "off-center" printed result,
+            since content only reliably lands where the driver maps
+            position 0 to the actual print head, not wherever CSS auto-
+            margins would centre it within its own (wrong) assumption. */}
         <div
-          className="mx-auto w-[320px] max-w-full p-5 print:w-full print:p-1 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
+          className="mx-auto w-[320px] max-w-full p-5 print:w-[46mm] print:mx-0 print:p-1 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
           style={{ fontFamily: "'Courier New', Courier, monospace" }}
         >
           <div className="text-center">
@@ -102,30 +127,12 @@ function PrintReceiptModal({ receipt, onClose }) {
           <div className="border-t border-dashed border-gray-400 my-2.5" />
 
           <div className="space-y-0.5">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Date:</span>
-              <span>
-                {formatDate(receipt.soldAt)} {formatTime(receipt.soldAt)}
-              </span>
-            </div>
-            {receipt.salesperson && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Salesperson:</span>
-                <span>{receipt.salesperson}</span>
-              </div>
-            )}
-            {receipt.customerName && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Customer:</span>
-                <span>{receipt.customerName}</span>
-              </div>
-            )}
-            {receipt.customerPhone && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Contact:</span>
-                <span>{receipt.customerPhone}</span>
-              </div>
-            )}
+            <Row label="Date:">
+              {formatDate(receipt.soldAt)} {formatTime(receipt.soldAt)}
+            </Row>
+            {receipt.salesperson && <Row label="Salesperson:">{receipt.salesperson}</Row>}
+            {receipt.customerName && <Row label="Customer:">{receipt.customerName}</Row>}
+            {receipt.customerPhone && <Row label="Contact:">{receipt.customerPhone}</Row>}
           </div>
 
           <div className="border-t border-dashed border-gray-400 my-2.5" />
@@ -138,9 +145,9 @@ function PrintReceiptModal({ receipt, onClose }) {
                   <p className="text-gray-500">{[item.storage, item.color].filter(Boolean).join(" · ")}</p>
                 )}
                 {item.batchCode && <p className="text-gray-500">Batch: {item.batchCode}</p>}
-                <div className="flex justify-between mt-0.5">
+                <div className="flex flex-wrap justify-between gap-x-2 mt-0.5">
                   <span>1 x {peso(item.price)}</span>
-                  <span>{peso(item.price)}</span>
+                  <span className="min-w-0 text-right">{peso(item.price)}</span>
                 </div>
               </div>
             ))}
@@ -149,13 +156,13 @@ function PrintReceiptModal({ receipt, onClose }) {
           <div className="border-t border-dashed border-gray-400 my-2.5" />
 
           <div className="space-y-0.5">
-            <div className="flex justify-between">
+            <div className="flex flex-wrap justify-between gap-x-2">
               <span className="text-gray-500">Subtotal</span>
-              <span>{peso(subtotal)}</span>
+              <span className="min-w-0 text-right">{peso(subtotal)}</span>
             </div>
-            <div className="flex justify-between font-bold text-sm border-t border-gray-900 pt-1.5 mt-1">
+            <div className="flex flex-wrap justify-between gap-x-2 font-bold text-sm border-t border-gray-900 pt-1.5 mt-1">
               <span>TOTAL</span>
-              <span>{peso(subtotal)}</span>
+              <span className="min-w-0 text-right">{peso(subtotal)}</span>
             </div>
           </div>
 
@@ -163,16 +170,10 @@ function PrintReceiptModal({ receipt, onClose }) {
 
           <div className="space-y-0.5">
             {receipt.orderType && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Order Type:</span>
-                <span>{receipt.orderType === "Bulk" ? "Bulk Order" : "Regular"}</span>
-              </div>
+              <Row label="Order Type:">{receipt.orderType === "Bulk" ? "Bulk Order" : "Regular"}</Row>
             )}
-            <div className="flex justify-between">
-              <span className="text-gray-500">Payment Method:</span>
-              <span>{receipt.paymentMethod}</span>
-            </div>
-            <div className="flex justify-between items-center">
+            <Row label="Payment Method:">{receipt.paymentMethod}</Row>
+            <div className="flex flex-wrap justify-between gap-x-2 items-center">
               <span className="text-gray-500">Payment Status:</span>
               <span
                 className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded tracking-wide ${
@@ -183,23 +184,10 @@ function PrintReceiptModal({ receipt, onClose }) {
               </span>
             </div>
             {receipt.referenceNumber && receipt.referenceNumber !== "N/A" && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Reference #:</span>
-                <span>{receipt.referenceNumber}</span>
-              </div>
+              <Row label="Reference #:">{receipt.referenceNumber}</Row>
             )}
-            {receipt.downPayment != null && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Down Payment:</span>
-                <span>{peso(receipt.downPayment)}</span>
-              </div>
-            )}
-            {receipt.balance != null && (
-              <div className="flex justify-between">
-                <span className="text-gray-500">Balance:</span>
-                <span>{peso(receipt.balance)}</span>
-              </div>
-            )}
+            {receipt.downPayment != null && <Row label="Down Payment:">{peso(receipt.downPayment)}</Row>}
+            {receipt.balance != null && <Row label="Balance:">{peso(receipt.balance)}</Row>}
           </div>
 
           {saleReference && (
