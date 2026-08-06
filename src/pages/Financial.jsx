@@ -285,7 +285,7 @@ function Financial() {
     <div className="space-y-4">
       {/* Print-only header */}
       <div className="hidden print:block mb-2">
-        <h1 className="text-xl font-bold text-gray-900">Mark Gadgets CGN — Financial Report</h1>
+        <h1 className="text-xl font-bold text-gray-900">MARK Gadgets & Accessories Shop — Financial Report</h1>
         <p className="text-sm text-gray-600">
           {reportType} · {generatedRange.from} to {generatedRange.to}
         </p>

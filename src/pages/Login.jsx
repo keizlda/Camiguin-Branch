@@ -110,7 +110,7 @@ function Login() {
         </div>
 
         <p className="text-center text-xs text-black mt-6">
-          © 2026 Mark Gadgets CGN. All rights reserved.
+          © 2026 MARK Gadgets & Accessories Shop. All rights reserved.
         </p>
       </div>
     </div>

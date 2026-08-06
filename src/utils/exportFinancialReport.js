@@ -29,7 +29,7 @@ function buildSheet(columns, rows) {
 // buildSheet's per-column shape.
 function buildSummarySheet({ reportType, generatedRange, totals, expenseTotals, netProfit, unsoldTotals }) {
   const rows = [
-    ["Mark Gadgets CGN — Financial Report", ""],
+    ["MARK Gadgets & Accessories Shop — Financial Report", ""],
     ["Report Type", reportType],
     ["Date Range", `${generatedRange.from || "—"} to ${generatedRange.to || "—"}`],
     ["Generated", new Date().toLocaleString("en-PH")],
@@ -152,5 +152,5 @@ export async function exportFinancialReport({
 
   // v4's writeXlsxFile() returns { toBlob, toFile } rather than triggering
   // the download itself — the fileName goes to .toFile(), not the options.
-  await writeXlsxFile(sheets, {}).toFile(`Mark Gadgets CGN Financial Report - ${reportType} - ${label}.xlsx`);
+  await writeXlsxFile(sheets, {}).toFile(`MARK Gadgets & Accessories Shop Financial Report - ${reportType} - ${label}.xlsx`);
 }

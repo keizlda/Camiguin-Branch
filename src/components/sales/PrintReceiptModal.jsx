@@ -107,7 +107,7 @@ function PrintReceiptModal({ receipt, onClose }) {
             <div className="w-11 h-11 rounded-full bg-gray-900 text-white flex items-center justify-center font-bold text-sm mx-auto mb-1.5">
               MG
             </div>
-            <p className="text-sm font-bold tracking-wide">MARK GADGETS CGN</p>
+            <p className="text-sm font-bold tracking-wide">MARK GADGETS & ACCESSORIES SHOP</p>
             <p className="text-[10px] text-gray-500 tracking-wide">POS &amp; INVENTORY SYSTEM</p>
             <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">
               {STORE_ADDRESS.map((line) => (
@@ -202,7 +202,7 @@ function PrintReceiptModal({ receipt, onClose }) {
             <br />
             Please keep this receipt for warranty and return purposes.
             <br />
-            &copy; {new Date().getFullYear()} Mark Gadgets CGN. All rights reserved.
+            &copy; {new Date().getFullYear()} MARK Gadgets & Accessories Shop. All rights reserved.
           </p>
 
           {receipt.notes && <p className="text-[10px] text-gray-500 mt-2 pt-2 border-t border-dashed border-gray-400">{receipt.notes}</p>}

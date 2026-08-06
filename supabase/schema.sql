@@ -1,4 +1,4 @@
--- Mark Gadgets CGN POS — initial schema
+-- MARK Gadgets & Accessories Shop POS — initial schema
 -- Run this in the Supabase SQL Editor (Project → SQL Editor → New query).
 -- Safe to run once against a fresh project. Re-running will error on
 -- "already exists" — that's expected, not a bug.

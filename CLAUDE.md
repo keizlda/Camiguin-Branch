@@ -4,6 +4,16 @@ A standalone POS/inventory system forked from the main Mark Gadgets store's
 codebase, for CGN's own branch. Same app, same features — but CGN is "the
 store" here, not a bulk buyer of someone else's inventory.
 
+**Displayed store name**: as of 2026-08-07, every customer/user-facing
+occurrence of the brand (Sidebar, Login footer, receipts, Reports/Financial
+print headers, the Financial Excel export, the browser tab title) reads
+"MARK Gadgets & Accessories Shop" — the actual trading name — not "Mark
+Gadgets CGN". "Mark Gadgets CGN" is still fine to use as this project's own
+internal/repo identity (folder name, git remote, this doc's own title,
+Supabase project name) since "CGN" (Camiguin branch) is what distinguishes
+this codebase from the sibling `mark-gadgets-pos` project it was forked
+from — just don't reintroduce it into UI text a customer would see.
+
 ## Tech Stack
 
 - React 19 + Vite 8 + Tailwind v4

@@ -63,7 +63,7 @@ function Sidebar({ open, onClose }) {
         <div className="px-5 py-5 border-b border-gray-800 flex items-center justify-between">
           <div>
             <h1 className="text-white font-bold text-lg leading-tight">
-              MARK GADGETS CGN
+              MARK GADGETS & ACCESSORIES SHOP
             </h1>
             <p className="text-gray-500 text-xs">POS & INVENTORY SYSTEM</p>
           </div>
