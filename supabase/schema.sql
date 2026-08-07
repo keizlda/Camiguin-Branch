@@ -181,7 +181,11 @@ create table public.sale_items (
 -- the invariant that stops "Return" from being submitted twice on one item.
 create table public.customer_returns (
   id uuid primary key default gen_random_uuid(),
-  sale_item_id uuid not null references public.sale_items (id) unique,
+  -- Not `unique` here — see customer_returns_one_pending_per_item below,
+  -- a partial unique index instead. A plain unique constraint would allow
+  -- only ONE return ever per sale_item, permanently blocking a genuine new
+  -- return once an old one had been Rejected or Replaced.
+  sale_item_id uuid not null references public.sale_items (id),
   reason text not null,
   status text not null default 'Pending' check (status in ('Pending', 'Replaced', 'Rejected')),
   replacement_device_id uuid references public.devices (id),
@@ -284,7 +288,12 @@ left join public.suppliers sup on sup.id = s.supplier_id
 left join public.devices d on d.bulk_order_shell_id = s.id
 group by s.id, sup.name;
 
--- Monthly completed-sales totals, for the Dashboard trend chart.
+-- Monthly completed-sales totals, for the Dashboard trend chart. Excludes
+-- a still-Pending Bulk order's revenue the same way Reports/Financial's own
+-- isPendingBulk check does (a Bulk order starts payment_status='Pending'
+-- until confirmed paid, see process_sale) -- otherwise unconfirmed Bulk
+-- revenue showed up here immediately while Reports/Financial for the same
+-- month excluded it, giving two different revenue figures for one period.
 create view public.sales_by_month_view
 with (security_invoker = true) as
 select
@@ -293,6 +302,7 @@ select
   sum(total_amount) as sales
 from public.sales
 where status = 'Completed'
+  and not (order_type = 'Bulk' and payment_status = 'Pending')
 group by date_trunc('month', sold_at);
 
 -- Recent devices with whichever customer they're most associated with right
@@ -336,6 +346,11 @@ create index on public.sales (salesperson_id);
 create index on public.sale_items (sale_id);
 create index on public.sale_items (device_id);
 create index on public.customer_returns (sale_item_id);
+-- Only one ACTIVE (Pending) return can exist per sale_item at a time, not
+-- "ever" — replaces the old plain unique constraint on this column.
+create unique index customer_returns_one_pending_per_item
+  on public.customer_returns (sale_item_id)
+  where status = 'Pending';
 create index on public.supplier_defective_records (device_id);
 create index on public.supplier_defective_records (supplier_id);
 create index on public.reservations (device_id);
@@ -405,6 +420,14 @@ begin
   loop
     v_device_id := (v_item->>'device_id')::uuid;
 
+    -- Guards against two concurrent sales both grabbing the same device
+    -- from a stale client-side product list — raising here rolls back the
+    -- whole sale (including the sales row just inserted above), not just
+    -- this one item, since nothing catches the exception.
+    if not exists (select 1 from public.devices where id = v_device_id and status = 'Available') then
+      raise exception 'One of these devices is no longer available — someone else may have just sold or reserved it. Refresh and try again.';
+    end if;
+
     insert into public.sale_items (sale_id, device_id, price_at_sale, quantity)
     values (v_sale_id, v_device_id, (v_item->>'price')::numeric, 1);
 
@@ -434,6 +457,18 @@ as $$
 declare
   v_sale_id uuid;
 begin
+  -- Guards against a stale "Convert to Sale" racing an already-completed
+  -- cancel/convert/expire on the same reservation (e.g. two staff acting
+  -- on the same Reserved page at once) — without this, a second, stale
+  -- action could silently clobber the outcome of whichever happened first.
+  if not exists (select 1 from public.reservations where id = p_reservation_id and status = 'Active') then
+    raise exception 'This reservation is no longer active — it may have already been converted, cancelled, or expired.';
+  end if;
+
+  if not exists (select 1 from public.devices where id = p_device_id and status = 'Reserved') then
+    raise exception 'This device is no longer in Reserved status.';
+  end if;
+
   insert into public.sales (customer_name, customer_phone, salesperson_id, payment_method, reference_number, total_amount, notes, status)
   values (p_customer_name, p_customer_phone, p_salesperson_id, p_payment_method, p_reference_number, p_total_price, p_notes, 'Completed')
   returning id into v_sale_id;
@@ -548,6 +583,12 @@ as $$
 declare
   v_reservation_id uuid;
 begin
+  -- Guards against two staff both reserving the same device from a stale
+  -- client-side list before either's page refreshes.
+  if not exists (select 1 from public.devices where id = p_device_id and status = 'Available') then
+    raise exception 'This device is no longer available to reserve — someone else may have just reserved or sold it. Refresh and try again.';
+  end if;
+
   insert into public.reservations (device_id, customer_name, customer_phone, salesperson_id, reserved_until, total_price, down_payment, status)
   values (p_device_id, p_customer_name, p_customer_phone, p_salesperson_id, p_reserved_until, p_total_price, coalesce(p_down_payment, 0), 'Active')
   returning id into v_reservation_id;
@@ -565,8 +606,16 @@ security invoker
 set search_path = public
 as $$
 begin
+  -- Guards against cancelling a reservation that's already been converted
+  -- to a sale (or expired) by a concurrent action — without this, a stale
+  -- "Cancel" click could free a device that's already been sold and paid
+  -- for back to Available.
+  if not exists (select 1 from public.reservations where id = p_reservation_id and status = 'Active') then
+    raise exception 'This reservation is no longer active — it may have already been converted, cancelled, or expired.';
+  end if;
+
   update public.reservations set status = 'Cancelled' where id = p_reservation_id;
-  update public.devices set status = 'Available' where id = p_device_id;
+  update public.devices set status = 'Available' where id = p_device_id and status = 'Reserved';
 end;
 $$;
 
@@ -866,11 +915,25 @@ begin
 
   delete from public.sale_items where id = p_sale_item_id;
 
-  update public.devices set status = 'Available' where id = v_device_id and status = 'Sold';
+  -- A unit with a pending return sits at 'Customer Returned', not 'Sold' —
+  -- undoing the sale needs to free it back to Available from either state,
+  -- not just the more common Sold one, or it's left stranded with no sale,
+  -- no return record, and no path back to Available.
+  update public.devices set status = 'Available'
+  where id = v_device_id and status in ('Sold', 'Customer Returned');
 
   delete from public.sales
   where id = v_sale_id
     and id not in (select distinct sale_id from public.sale_items);
+
+  -- If the parent sale still has other items, its total needs to shrink by
+  -- the deleted item's price — otherwise it keeps counting a unit that's
+  -- no longer part of it. No-op if the sale itself was just deleted above
+  -- (this WHERE then matches nothing). Same recompute edit_sale already
+  -- does after a price edit.
+  update public.sales
+  set total_amount = coalesce((select sum(price_at_sale * quantity) from public.sale_items where sale_id = v_sale_id), 0)
+  where id = v_sale_id;
 end;
 $$;
 
@@ -1017,10 +1080,20 @@ alter table public.bulk_order_shells enable row level security;
 
 -- profiles: everyone authenticated can view (needed for salesperson lookups),
 -- but a user can only update their own row.
+-- The with check here is load-bearing, not decorative: an UPDATE policy's
+-- using clause alone only restricts WHICH row can be touched (their own),
+-- not what it can be changed to. Without with check, a plain using clause
+-- is reused for that too, and since 'admin' is a valid value of the role
+-- check constraint, any authenticated user could otherwise run
+-- `update profiles set role = 'admin' where id = auth.uid()` from the
+-- client SDK and grant themselves admin. Comparing role to its own current
+-- value (via the subquery) is what actually blocks that, while still
+-- allowing a user to update their own name.
 create policy "profiles_select_authenticated" on public.profiles
   for select using (auth.role() = 'authenticated');
 create policy "profiles_update_own" on public.profiles
-  for update using (auth.uid() = id);
+  for update using (auth.uid() = id)
+  with check (auth.uid() = id and role = (select p.role from public.profiles p where p.id = auth.uid()));
 
 -- Every other table: full CRUD for any authenticated user, for now.
 create policy "suppliers_all_authenticated" on public.suppliers

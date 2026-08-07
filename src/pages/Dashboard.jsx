@@ -65,9 +65,15 @@ function Dashboard() {
     { label: "Returned", value: allDevices.filter((d) => d.status === "Returned" || d.status === "Customer Returned").length, unit: "Units", color: "purple" },
   ];
 
-  const totalDevices = allDevices.length;
+  // Current on-hand stock, not all-time device volume — a Sold unit isn't
+  // sitting in inventory anymore. Every device status except Sold counts
+  // (Available/Reserved/Supplier Defective/Customer Returned/Returned),
+  // matching the same "still tied up in the business" convention Financial
+  // uses (UNSOLD_STATUSES there).
+  const inStockDevices = allDevices.filter((d) => d.status !== "Sold");
+  const totalDevices = inStockDevices.length;
   const inventoryByCategory = deviceCategories.map((cat, index) => {
-    const value = allDevices.filter((d) => d.category === cat).length;
+    const value = inStockDevices.filter((d) => d.category === cat).length;
     return {
       name: cat,
       value,

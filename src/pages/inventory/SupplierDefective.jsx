@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, Filter, MoreVertical, Wrench, ShoppingBag, Truck, CheckCircle2, Info } from "lucide-react";
 import { useServiceData } from "../../hooks/useServiceData";
 import { useIsAdmin } from "../../hooks/useIsAdmin";
+import { useToast } from "../../hooks/useToast";
 import { getSupplierDefectiveRecords } from "../../services/inventoryService";
 import { getSuppliers } from "../../services/referenceService";
 import UpdateDefectiveStatusModal from "../../components/inventory/UpdateDefectiveStatusModal";
@@ -19,11 +20,14 @@ const blankFilters = { dateRange: undefined, supplier: "All", status: "All", sea
 function SupplierDefective() {
   const suppliers = useServiceData(getSuppliers, []);
   const isAdmin = useIsAdmin();
+  const showToast = useToast();
 
   const [supplierDefectiveRecords, setSupplierDefectiveRecords] = useState([]);
   const loadRecords = useCallback(() => {
-    getSupplierDefectiveRecords().then(setSupplierDefectiveRecords);
-  }, []);
+    getSupplierDefectiveRecords()
+      .then(setSupplierDefectiveRecords)
+      .catch((err) => showToast(err.message || "Failed to load supplier defective records. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadRecords();
   }, [loadRecords]);
@@ -204,7 +208,7 @@ function SupplierDefective() {
                   </td>
                 </tr>
               ) : paginated.map((row, index) => (
-                <tr key={row.batchCode} className="border-b border-gray-50 hover:bg-gray-50">
+                <tr key={row.id} className="border-b border-gray-50 hover:bg-gray-50">
                   <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{row.batchCode}</td>
                   <td className="px-3 py-3">
                     <p className="text-gray-800 font-medium whitespace-nowrap">{row.device}</p>

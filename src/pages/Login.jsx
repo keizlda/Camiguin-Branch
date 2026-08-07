@@ -14,9 +14,13 @@ function Login() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    getSession().then((session) => {
-      if (session) navigate("/dashboard", { replace: true });
-    });
+    // If this fails, the user just stays on the login form and logs in
+    // normally — not worth an error toast for a convenience redirect.
+    getSession()
+      .then((session) => {
+        if (session) navigate("/dashboard", { replace: true });
+      })
+      .catch(() => {});
   }, [navigate]);
 
   const handleLogin = async (e) => {

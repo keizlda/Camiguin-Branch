@@ -12,14 +12,19 @@ function mapExpense(e) {
 }
 
 // Reports is reachable by any role, so it only ever shows General/Cargo —
-// the two categories staff are meant to see, regardless of whether the
-// entry was logged here or from Financial by an admin. Prulife/Personal
-// stay out entirely; they're Financial-only categories.
+// the two categories staff are meant to see. admin_only=false further
+// restricts that: Financial.jsx marks every entry it adds admin_only=true
+// regardless of category (its own comment says these "stay hidden from
+// Reports"), but this query used to only filter by category, not the flag
+// itself — an admin's General/Cargo expense logged from Financial leaked
+// into Reports (visible to every staff role) and silently ate into their
+// Net Profit figure, contradicting what Financial's own comment promised.
 export async function getExpenses() {
   const { data, error } = await supabase
     .from("expenses")
     .select("id, expense_date, description, amount, admin_only, category")
     .in("category", ["General", "Cargo"])
+    .eq("admin_only", false)
     .order("expense_date", { ascending: false });
 
   if (error) throw error;

@@ -2,6 +2,16 @@ import writeXlsxFile from "write-excel-file/browser";
 
 const HEADER_STYLE = { fontWeight: "bold", backgroundColor: "#f3f4f6" };
 
+// Mirrors Financial.jsx's own isPendingBulk — a Bulk order starts
+// payment_status='Pending' until confirmed paid (see process_sale), and
+// the Summary sheet's totals exclude those rows the same way the on-screen
+// ledger does. Without a way to tell which Sales-sheet rows are Pending
+// Bulk, the two sheets silently don't add up to each other; this labels
+// them so the gap is traceable instead of a surprise.
+function isPendingBulk(row) {
+  return row.orderType === "Bulk" && row.paymentStatus === "Pending";
+}
+
 // columns: [{ label, key, type, width, format }]. Builds one sheet's worth
 // of { value, type }-shaped rows from a header row + plain data objects —
 // write-excel-file wants every cell explicitly typed, so this is the one
@@ -88,6 +98,7 @@ export async function exportFinancialReport({
       { label: "Payment Method", key: "payment", width: 16 },
       { label: "Salesperson", key: "salesperson", width: 16 },
       { label: "Supplier", key: "supplier", width: 16 },
+      { label: "Status", key: "rowStatus", width: 16 },
     ],
     storeRows.map((r) => ({
       date: r.date,
@@ -99,6 +110,10 @@ export async function exportFinancialReport({
       payment: r.payment,
       salesperson: r.salesperson,
       supplier: r.supplier,
+      // Not in the Summary sheet's totals below — same rule as the
+      // on-screen ledger (isPendingBulk), called out here so the two
+      // sheets' totals not matching is traceable, not a silent gap.
+      rowStatus: isPendingBulk(r) ? "Pending (Bulk, excluded from totals)" : r.status === "Returned" ? "Returned" : "",
     }))
   );
 

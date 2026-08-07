@@ -64,8 +64,10 @@ function NewSale() {
 
   const [availableDevices, setAvailableDevices] = useState([]);
   const loadAvailableDevices = useCallback(() => {
-    getAvailableDevicesForSale().then(setAvailableDevices);
-  }, []);
+    getAvailableDevicesForSale()
+      .then(setAvailableDevices)
+      .catch((err) => showToast(err.message || "Failed to load available devices. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadAvailableDevices();
   }, [loadAvailableDevices]);
@@ -157,7 +159,21 @@ function NewSale() {
     showToast("Trade-in unit saved to inventory.");
   };
 
-  const handleRemoveSwapTradeIn = () => {
+  // Same cleanup as "Log different unit" below — the trade-in device
+  // (always priced ₱0, see SwapTradeInModal) was only ever logged for
+  // this swap. Without deleting it here too, abandoning the swap via
+  // Remove left it sitting in inventory as a real Available unit at ₱0,
+  // indistinguishable from any other product until someone noticed.
+  const handleRemoveSwapTradeIn = async () => {
+    if (swapTradeIn) {
+      try {
+        await deleteDevice(swapTradeIn.id);
+        loadAvailableDevices();
+      } catch {
+        // Leave it if it can't be removed — better an extra unit in
+        // inventory than blocking the rest of the sale over this.
+      }
+    }
     setSwapTradeIn(null);
     if (payment === "Swap") {
       setPayment("Cash");
@@ -265,6 +281,14 @@ function NewSale() {
     }
     if (payment === "Swap" && !swapTradeIn) {
       setError("Log the customer's trade-in phone before processing a swap sale.");
+      return;
+    }
+    // Without this, a financed sale could be submitted with both fields
+    // blank — it'd still succeed (they're nullable columns), but the
+    // printed receipt would then look identical to a fully-paid cash sale,
+    // with nothing on it indicating money is still owed.
+    if (FINANCING_METHODS.includes(payment) && (downPayment === "" || balance === "" || Number(downPayment) < 0 || Number(balance) < 0)) {
+      setError("Enter both Down Payment and Balance before processing a financed sale.");
       return;
     }
     setSubmitting(true);

@@ -4,18 +4,22 @@ import { getLowStockItems } from "../../services/inventoryService";
 import { getDeviceCategories } from "../../services/referenceService";
 import { useServiceData } from "../../hooks/useServiceData";
 import { useIsAdmin } from "../../hooks/useIsAdmin";
+import { useToast } from "../../hooks/useToast";
 import ReorderSettingsModal from "../../components/inventory/ReorderSettingsModal";
 
 const blankFilters = { category: "All", search: "" };
 
 function LowStock() {
   const isAdmin = useIsAdmin();
+  const showToast = useToast();
   const deviceCategories = useServiceData(getDeviceCategories, []);
 
   const [lowStockItems, setLowStockItems] = useState([]);
   const loadLowStockItems = useCallback(() => {
-    getLowStockItems().then(setLowStockItems);
-  }, []);
+    getLowStockItems()
+      .then(setLowStockItems)
+      .catch((err) => showToast(err.message || "Failed to load low stock items. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadLowStockItems();
   }, [loadLowStockItems]);

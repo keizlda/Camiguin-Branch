@@ -89,8 +89,10 @@ function Financial() {
   const showToast = useToast();
   const [salesHistory, setSalesHistory] = useState([]);
   const loadSalesHistory = useCallback(() => {
-    getSalesHistory().then(setSalesHistory);
-  }, []);
+    getSalesHistory()
+      .then(setSalesHistory)
+      .catch((err) => showToast(err.message || "Failed to load sales history. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadSalesHistory();
   }, [loadSalesHistory]);
@@ -107,8 +109,10 @@ function Financial() {
 
   const [expenses, setExpenses] = useState([]);
   const loadExpenses = useCallback(() => {
-    getAllExpenses().then(setExpenses);
-  }, []);
+    getAllExpenses()
+      .then(setExpenses)
+      .catch((err) => showToast(err.message || "Failed to load expenses. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadExpenses();
   }, [loadExpenses]);
@@ -133,7 +137,11 @@ function Financial() {
 
   const totals = useMemo(() => {
     const countedRows = rows.filter((r) => !isPendingBulk(r));
-    const totalCapital = countedRows.reduce((sum, r) => sum + (r.purchasePrice ?? 0), 0);
+    // A unit with a still-Pending return has its purchase price counted in
+    // the Unsold Units card below (its device sits at 'Customer Returned',
+    // one of UNSOLD_STATUSES) — excluded here so the same capital isn't
+    // also counted in this ledger's own total at the same time.
+    const totalCapital = countedRows.reduce((sum, r) => sum + (r.hasPendingReturn ? 0 : r.purchasePrice ?? 0), 0);
     const totalDisposal = countedRows.reduce((sum, r) => sum + r.total, 0);
     const totalNetProfit = countedRows.reduce((sum, r) => sum + (r.netProfit ?? 0), 0);
     return { totalCapital, totalDisposal, totalNetProfit };

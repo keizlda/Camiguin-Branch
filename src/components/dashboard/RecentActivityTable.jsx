@@ -8,6 +8,7 @@ const statusStyles = {
   Available: "bg-green-100 text-green-600",
   "Customer Returned": "bg-purple-100 text-purple-600",
   "Supplier Defective": "bg-red-100 text-red-600",
+  Returned: "bg-purple-100 text-purple-600",
 };
 
 function RecentActivityTable() {

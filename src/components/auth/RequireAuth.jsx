@@ -6,7 +6,14 @@ function RequireAuth({ children }) {
   const [session, setSession] = useState(undefined); // undefined = still checking
 
   useEffect(() => {
-    getSession().then(setSession);
+    // A rejected getSession() (rare, but possible — a corrupted local
+    // session, a network blip) must not leave `session` stuck at
+    // `undefined` forever, which renders a blank page with no redirect
+    // and no error. Falls back to "not logged in," same as any other
+    // failure to establish a session.
+    getSession()
+      .then(setSession)
+      .catch(() => setSession(null));
     return onAuthStateChange(setSession);
   }, []);
 

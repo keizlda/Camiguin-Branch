@@ -79,8 +79,10 @@ function AddDevice() {
 
   const [productCatalog, setProductCatalog] = useState({});
   const loadProductCatalog = useCallback(() => {
-    getProductCatalog().then(setProductCatalog);
-  }, []);
+    getProductCatalog()
+      .then(setProductCatalog)
+      .catch((err) => showToast(err.message || "Failed to load the product catalog. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadProductCatalog();
   }, [loadProductCatalog]);
@@ -98,8 +100,10 @@ function AddDevice() {
 
   const [pendingShells, setPendingShells] = useState([]);
   const loadPendingShells = useCallback(() => {
-    getPendingShellsWithProgress().then(setPendingShells);
-  }, []);
+    getPendingShellsWithProgress()
+      .then(setPendingShells)
+      .catch((err) => showToast(err.message || "Failed to load pending shipments. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadPendingShells();
   }, [loadPendingShells]);
@@ -213,6 +217,12 @@ function AddDevice() {
       storage: shell.storage || "",
       supplier: shell.supplierName || f.supplier,
     }));
+    // Same reason handleCategoryChange regenerates the batch code — the
+    // prefix is brand-specific, and a shipment can resolve to a different
+    // category than whatever was already selected. Without this, a code
+    // generated for the previous category's brand stayed in the field even
+    // after switching brands via a linked shipment.
+    generateBatchCode(matchedCategory || form.category, { silent: true });
   };
 
   const handleSubmit = async (e) => {

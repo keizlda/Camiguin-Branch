@@ -32,8 +32,10 @@ function CustomerReturns() {
 
   const [customerReturns, setCustomerReturns] = useState([]);
   const loadReturns = useCallback(() => {
-    getCustomerReturns().then(setCustomerReturns);
-  }, []);
+    getCustomerReturns()
+      .then(setCustomerReturns)
+      .catch((err) => showToast(err.message || "Failed to load returns. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadReturns();
   }, [loadReturns]);

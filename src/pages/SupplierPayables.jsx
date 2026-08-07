@@ -25,8 +25,10 @@ function SupplierPayables() {
 
   const [shells, setShells] = useState([]);
   const loadShells = useCallback(() => {
-    getSupplierPayables().then(setShells);
-  }, []);
+    getSupplierPayables()
+      .then(setShells)
+      .catch((err) => showToast(err.message || "Failed to load supplier payables. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadShells();
   }, [loadShells]);
@@ -55,8 +57,10 @@ function SupplierPayables() {
   // suppliers. ============
   const [salesHistory, setSalesHistory] = useState([]);
   const loadSalesHistory = useCallback(() => {
-    getSalesHistory().then(setSalesHistory);
-  }, []);
+    getSalesHistory()
+      .then(setSalesHistory)
+      .catch((err) => showToast(err.message || "Failed to load sales history. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadSalesHistory();
   }, [loadSalesHistory]);

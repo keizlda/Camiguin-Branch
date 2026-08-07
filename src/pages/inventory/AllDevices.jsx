@@ -24,8 +24,10 @@ function AllDevices() {
 
   const [allDevices, setAllDevices] = useState([]);
   const loadDevices = useCallback(() => {
-    getAllDevices().then(setAllDevices);
-  }, []);
+    getAllDevices()
+      .then(setAllDevices)
+      .catch((err) => showToast(err.message || "Failed to load devices. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadDevices();
   }, [loadDevices]);
@@ -47,16 +49,20 @@ function AllDevices() {
 
   const [pendingShells, setPendingShells] = useState([]);
   const loadPendingShells = useCallback(() => {
-    getPendingShellsWithProgress().then(setPendingShells);
-  }, []);
+    getPendingShellsWithProgress()
+      .then(setPendingShells)
+      .catch((err) => showToast(err.message || "Failed to load pending shipments. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadPendingShells();
   }, [loadPendingShells]);
 
   const [allShells, setAllShells] = useState([]);
   const loadAllShells = useCallback(() => {
-    getAllShellsWithProgress().then(setAllShells);
-  }, []);
+    getAllShellsWithProgress()
+      .then(setAllShells)
+      .catch((err) => showToast(err.message || "Failed to load shipments. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadAllShells();
   }, [loadAllShells]);

@@ -100,8 +100,10 @@ function Reports() {
 
   const [expenses, setExpenses] = useState([]);
   const loadExpenses = useCallback(() => {
-    getExpenses().then(setExpenses);
-  }, []);
+    getExpenses()
+      .then(setExpenses)
+      .catch((err) => showToast(err.message || "Failed to load expenses. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadExpenses();
   }, [loadExpenses]);

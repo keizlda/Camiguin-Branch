@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Smartphone, Tablet, Watch, Laptop, Headphones, Wrench, MoreVertical, Eye, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { useIsAdmin } from "../../hooks/useIsAdmin";
 
@@ -27,6 +27,15 @@ function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selected
   const [openMenu, setOpenMenu] = useState(null);
 
   const totalPages = Math.max(1, Math.ceil(devices.length / perPage));
+
+  // A new filter can shrink `devices` enough that whatever page the user
+  // was already on no longer exists — without this, the table silently
+  // rendered "No devices found" against a stale page number even though
+  // matching rows existed on page 1 of the new, smaller result set.
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [totalPages, page]);
+
   const start = (page - 1) * perPage;
   const paginated = devices.slice(start, start + perPage);
 

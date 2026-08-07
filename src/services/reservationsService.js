@@ -13,9 +13,11 @@ export async function expireOverdueReservations() {
   if (error) throw error;
 }
 
-// Converted and Expired reservations already live on elsewhere (Sales
-// History, or the device just going back to Available) — keeping them here
-// too would just be a stale duplicate.
+// Converted reservations already live on elsewhere (as a completed sale in
+// Sales History) — keeping them here too would just be a stale duplicate.
+// Expired ones, unlike Converted, stay in this list (same as Cancelled)
+// for history — Reserved.jsx's own "Expired Reservations" stat card and
+// action-menu branch are both built expecting that.
 export async function getReservedDevices() {
   await expireOverdueReservations();
 
@@ -35,12 +37,14 @@ export async function getReservedDevices() {
     profiles:salesperson_id ( name )
   `
     )
-    .neq("status", "Converted")
-    .neq("status", "Expired");
+    .neq("status", "Converted");
 
   if (error) throw error;
 
   const now = new Date();
+  // How close to reserved_until counts as "coming up soon" for the
+  // Expiring Soon badge/stat card below.
+  const EXPIRING_SOON_DAYS = 2;
 
   return data
     .slice()
@@ -48,6 +52,17 @@ export async function getReservedDevices() {
     .map((r) => {
       const reservedUntilDate = new Date(r.reserved_until);
       const daysLeft = Math.ceil((reservedUntilDate - now) / (1000 * 60 * 60 * 24));
+      // "Expiring Soon" is a real value in the status check constraint and
+      // Reserved.jsx's UI (badge color, stat card, action-menu condition)
+      // is fully built around it, but nothing ever wrote it to the
+      // database — reservations only ever moved Active -> Cancelled/
+      // Converted/Expired. Computed here instead of stored: it's a
+      // moving target (how many days are left changes every day without
+      // anything else about the reservation changing), so deriving it at
+      // read time avoids needing a cron/RPC to keep a stored value from
+      // going stale. The underlying status in the database stays 'Active'
+      // — only this display value changes.
+      const displayStatus = r.status === "Active" && daysLeft >= 0 && daysLeft <= EXPIRING_SOON_DAYS ? "Expiring Soon" : r.status;
       return {
         id: r.id,
         deviceId: r.devices?.id,
@@ -63,7 +78,7 @@ export async function getReservedDevices() {
         color: r.devices?.color,
         reservedUntil: formatDate(r.reserved_until),
         daysLeft,
-        status: r.status,
+        status: displayStatus,
         totalPrice: r.total_price,
         downPayment: r.down_payment,
       };

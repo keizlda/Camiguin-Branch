@@ -2,10 +2,12 @@ import { useState, useEffect, useMemo } from "react";
 import { X, AlertTriangle } from "lucide-react";
 import { getAvailableDevicesForReplacement, getAvailableDevicesForSale } from "../../services/inventoryService";
 import { replaceReturn } from "../../services/returnsService";
+import { useToast } from "../../hooks/useToast";
 
 const OTHER_UNIT = "__other__";
 
 function ReplaceReturnModal({ record, onClose, onReplaced }) {
+  const showToast = useToast();
   const [candidates, setCandidates] = useState([]);
   const [candidatesLoaded, setCandidatesLoaded] = useState(false);
   const [replacementId, setReplacementId] = useState("");
@@ -18,17 +20,24 @@ function ReplaceReturnModal({ record, onClose, onReplaced }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getAvailableDevicesForReplacement(record.device).then((list) => {
-      setCandidates(list);
-      setCandidatesLoaded(true);
-    });
-  }, [record.device]);
+    getAvailableDevicesForReplacement(record.device)
+      .then((list) => {
+        setCandidates(list);
+        setCandidatesLoaded(true);
+      })
+      .catch((err) => {
+        setCandidatesLoaded(true);
+        showToast(err.message || "Failed to load matching replacement units. Please try again.", "error");
+      });
+  }, [record.device, showToast]);
 
   useEffect(() => {
     if (replacementId === OTHER_UNIT && otherDevices.length === 0) {
-      getAvailableDevicesForSale().then(setOtherDevices);
+      getAvailableDevicesForSale()
+        .then(setOtherDevices)
+        .catch((err) => showToast(err.message || "Failed to load other devices. Please try again.", "error"));
     }
-  }, [replacementId, otherDevices.length]);
+  }, [replacementId, otherDevices.length, showToast]);
 
   const filteredOtherDevices = useMemo(() => {
     if (!otherSearch) return otherDevices;

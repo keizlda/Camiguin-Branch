@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { X, AlertTriangle } from "lucide-react";
 import { getAvailableDevicesForSale } from "../../services/inventoryService";
 import { createReservation } from "../../services/reservationsService";
+import { useToast } from "../../hooks/useToast";
 
 function toISODate(d) {
   const offset = d.getTimezoneOffset();
@@ -15,6 +16,7 @@ function defaultReservedUntil() {
 }
 
 function NewReservationModal({ onClose, onCreated }) {
+  const showToast = useToast();
   const [devices, setDevices] = useState([]);
   const [deviceSearch, setDeviceSearch] = useState("");
   const [selectedId, setSelectedId] = useState("");
@@ -27,8 +29,10 @@ function NewReservationModal({ onClose, onCreated }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    getAvailableDevicesForSale().then(setDevices);
-  }, []);
+    getAvailableDevicesForSale()
+      .then(setDevices)
+      .catch((err) => showToast(err.message || "Failed to load available devices. Please try again.", "error"));
+  }, [showToast]);
 
   const filteredDevices = useMemo(() => {
     if (!deviceSearch) return devices;

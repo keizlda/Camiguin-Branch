@@ -32,7 +32,8 @@ export async function getSalesHistory() {
       purchase_price,
       date_added,
       suppliers:supplier_id ( name )
-    )
+    ),
+    customer_returns ( status )
   `);
 
   if (error) throw error;
@@ -83,15 +84,24 @@ export async function getSalesHistory() {
         // since a financed sale doesn't have one.
         downPayment: item.sales?.down_payment ?? null,
         balance: item.sales?.balance ?? null,
-        // The device's own status wins when it's since been returned — the
-        // sale itself is still "Completed" (no refund happened), but this
-        // row represents that specific unit, which is no longer with the
-        // customer. A replaced return sends the original unit straight to
-        // Supplier Defective, so that status also counts as "Returned".
-        status:
-          item.devices?.status === "Customer Returned" || item.devices?.status === "Supplier Defective"
-            ? "Returned"
-            : item.sales?.status,
+        // Read from this line item's own customer_returns row(s), not the
+        // joined device's status — replace_return repoints sale_items.
+        // device_id to the replacement unit (status 'Sold'), so checking
+        // the joined device's status stopped working the moment a return
+        // was actually resolved via replacement: it would always read as
+        // 'Sold' again and this row would fall back to looking like a
+        // plain completed sale. A Rejected return correctly does NOT count
+        // as "Returned" here — the customer kept the original unit, so the
+        // sale is exactly as it looked before the return was ever filed.
+        status: item.customer_returns?.some((r) => r.status === "Pending" || r.status === "Replaced")
+          ? "Returned"
+          : item.sales?.status,
+        // A return still sitting Pending (unresolved) leaves its device at
+        // 'Customer Returned' — capital tied up in it, not truly disposed
+        // of. Financial's Unsold Units card already counts that same
+        // capital separately; this flag lets the main ledger's totals
+        // exclude it so the two don't double-count the same purchase price.
+        hasPendingReturn: item.customer_returns?.some((r) => r.status === "Pending") ?? false,
       };
     });
 }

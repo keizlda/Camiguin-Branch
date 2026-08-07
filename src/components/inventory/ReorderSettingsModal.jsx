@@ -7,8 +7,10 @@ import {
   updateReorderSetting,
   deleteReorderSetting,
 } from "../../services/reorderService";
+import { useToast } from "../../hooks/useToast";
 
 function ReorderSettingsModal({ onClose, onChanged }) {
+  const showToast = useToast();
   const [settings, setSettings] = useState([]);
   const [modelNames, setModelNames] = useState([]);
   const [levelDrafts, setLevelDrafts] = useState({});
@@ -20,12 +22,16 @@ function ReorderSettingsModal({ onClose, onChanged }) {
   const [adding, setAdding] = useState(false);
 
   const load = useCallback(() => {
-    getReorderSettings().then((rows) => {
-      setSettings(rows);
-      setLevelDrafts(Object.fromEntries(rows.map((r) => [r.id, String(r.reorderLevel)])));
-    });
-    getDeviceModelNames().then(setModelNames);
-  }, []);
+    getReorderSettings()
+      .then((rows) => {
+        setSettings(rows);
+        setLevelDrafts(Object.fromEntries(rows.map((r) => [r.id, String(r.reorderLevel)])));
+      })
+      .catch((err) => showToast(err.message || "Failed to load reorder settings. Please try again.", "error"));
+    getDeviceModelNames()
+      .then(setModelNames)
+      .catch((err) => showToast(err.message || "Failed to load device models. Please try again.", "error"));
+  }, [showToast]);
 
   useEffect(() => {
     load();

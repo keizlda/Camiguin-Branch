@@ -21,6 +21,13 @@ function EditDefectiveRecordModal({ record, onClose, onUpdated }) {
       setError("Issue / Defect description is required.");
       return;
     }
+    // Without this, clearing the field (reachable by deleting its
+    // sub-fields) let `new Date("")` reach .toISOString() below, which
+    // throws a raw "Invalid time value" instead of a clear prompt.
+    if (!dateDetected) {
+      setError("Date Detected is required.");
+      return;
+    }
     setError("");
     setSubmitting(true);
     try {

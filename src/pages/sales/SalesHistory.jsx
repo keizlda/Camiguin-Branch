@@ -51,8 +51,10 @@ function SalesHistory() {
   const isAdmin = useIsAdmin();
   const [salesHistory, setSalesHistory] = useState([]);
   const loadSalesHistory = useCallback(() => {
-    getSalesHistory().then(setSalesHistory);
-  }, []);
+    getSalesHistory()
+      .then(setSalesHistory)
+      .catch((err) => showToast(err.message || "Failed to load sales history. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadSalesHistory();
   }, [loadSalesHistory]);

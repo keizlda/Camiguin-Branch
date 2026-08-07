@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import { getDeviceSaleInfo } from "../../services/salesService";
 import { formatDate, formatTime } from "../../utils/datetime";
 import { isAccessoryLikeCategory } from "../../data/referenceData";
+import { useToast } from "../../hooks/useToast";
 
 const statusStyles = {
   Sold: "bg-blue-100 text-blue-600",
@@ -30,13 +31,21 @@ function Row({ label, children }) {
 // unsold units) view devices with no sale context, so those rows just
 // don't render.
 function DeviceDetailsModal({ device, paymentMethod, downPayment, balance, onClose }) {
+  const showToast = useToast();
   const [saleInfo, setSaleInfo] = useState(undefined); // undefined = loading, null = never sold
 
   useEffect(() => {
     if (!device) return;
     setSaleInfo(undefined);
-    getDeviceSaleInfo(device.id).then(setSaleInfo);
-  }, [device]);
+    getDeviceSaleInfo(device.id)
+      .then(setSaleInfo)
+      .catch((err) => {
+        // Without this, a failed fetch left "Date Sold" reading "Loading..."
+        // forever with no indication anything went wrong.
+        setSaleInfo(null);
+        showToast(err.message || "Failed to load sale info for this device.", "error");
+      });
+  }, [device, showToast]);
 
   if (!device) return null;
 

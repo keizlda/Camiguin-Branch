@@ -37,8 +37,10 @@ function Reserved() {
   const showToast = useToast();
   const [reservedDevices, setReservedDevices] = useState([]);
   const loadReservations = useCallback(() => {
-    getReservedDevices().then(setReservedDevices);
-  }, []);
+    getReservedDevices()
+      .then(setReservedDevices)
+      .catch((err) => showToast(err.message || "Failed to load reservations. Please refresh and try again.", "error"));
+  }, [showToast]);
   useEffect(() => {
     loadReservations();
   }, [loadReservations]);
@@ -242,7 +244,7 @@ function Reserved() {
                   </td>
                 </tr>
               ) : paginated.map((row, index) => (
-                <tr key={row.batchCode} className="border-b border-gray-50 hover:bg-gray-50">
+                <tr key={row.id} className="border-b border-gray-50 hover:bg-gray-50">
                   <td className="py-3">
                     <span className="text-blue-600 font-medium">{row.batchCode}</span>
                   </td>

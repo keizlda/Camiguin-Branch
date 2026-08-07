@@ -78,10 +78,12 @@ function CatalogTab({ onChanged }) {
   const [error, setError] = useState("");
 
   const load = useCallback(() => {
-    getCatalogModels().then((rows) => {
-      setModels(rows);
-      setSelectedModelId((id) => (rows.some((m) => m.id === id) ? id : null));
-    });
+    getCatalogModels()
+      .then((rows) => {
+        setModels(rows);
+        setSelectedModelId((id) => (rows.some((m) => m.id === id) ? id : null));
+      })
+      .catch((err) => setError(err.message || "Failed to load models."));
   }, []);
   useEffect(() => {
     load();
@@ -90,11 +92,13 @@ function CatalogTab({ onChanged }) {
   // Active categories only — an archived one shouldn't be pickable here
   // even though its past models/product_models rows are untouched.
   useEffect(() => {
-    getAllCategories().then((rows) => {
-      const active = rows.filter((c) => c.active).map((c) => c.name);
-      setCategories(active);
-      setCategory((current) => (current && active.includes(current) ? current : active[0] || ""));
-    });
+    getAllCategories()
+      .then((rows) => {
+        const active = rows.filter((c) => c.active).map((c) => c.name);
+        setCategories(active);
+        setCategory((current) => (current && active.includes(current) ? current : active[0] || ""));
+      })
+      .catch((err) => setError(err.message || "Failed to load categories."));
   }, []);
 
   const notify = () => {
