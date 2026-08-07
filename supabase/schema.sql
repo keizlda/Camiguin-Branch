@@ -1145,6 +1145,15 @@ create policy "bulk_order_shells_all_authenticated" on public.bulk_order_shells
 -- RAM variants of the same storage size, which a storage-only label can't
 -- distinguish. Set from the store's actual 2026-08-07 stock list; adjust
 -- via Manage Catalog as new combos come in rather than editing here.
+-- Android brands' storages below are the union of every real RAM+storage
+-- combo actually sold for that brand's specific catalogued models (see the
+-- product_models seed below) -- researched per-model rather than guessed,
+-- since this one shared list is what every model in the brand's dropdown
+-- draws from (the schema doesn't have a per-model storage override, only
+-- per-brand). Itel keeps 'N/A' deliberately: the Itel Power 120 in its
+-- lineup is a real 2G feature phone with MB-scale memory, not a
+-- GB-storage smartphone, so it doesn't have a real RAM+storage combo to
+-- offer -- forcing one would misrepresent the actual hardware.
 insert into public.categories (name, db_value, brand, prefix, storages, is_accessory_like) values
   ('iPhone', 'iPhones', 'Apple', 'IP', ARRAY['32GB','128GB','256GB','512GB','1TB'], false),
   ('iPad', 'iPads', 'Apple', 'IPD', ARRAY['64GB','128GB','256GB','512GB'], false),
@@ -1152,14 +1161,14 @@ insert into public.categories (name, db_value, brand, prefix, storages, is_acces
   ('MacBook', 'MacBooks', 'Apple', 'MB', ARRAY['256GB','512GB','1TB','2TB'], false),
   ('Accessories', 'Accessories', 'Various', 'AC', ARRAY['N/A'], true),
   ('Repair Parts', 'Repair Parts', 'Various', 'RP', ARRAY['N/A'], true),
-  ('Samsung', 'Samsung', 'Samsung', 'SS', ARRAY['4GB+128GB','6GB+128GB','8GB+256GB'], false),
+  ('Samsung', 'Samsung', 'Samsung', 'SS', ARRAY['4GB+64GB','4GB+128GB','6GB+128GB','8GB+128GB','6GB+256GB','8GB+256GB','12GB+256GB','12GB+512GB'], false),
   ('Vivo', 'Vivo', 'Vivo', 'VV', ARRAY['4GB+64GB','4GB+128GB','8GB+256GB','12GB+256GB'], false),
-  ('Realme', 'Realme', 'Realme', 'RM', ARRAY['4GB+128GB','4GB+256GB','8GB+256GB'], false),
-  ('Redmi', 'Redmi', 'Redmi', 'RD', ARRAY['3GB+64GB','4GB+64GB','4GB+128GB','4GB+256GB','8GB+256GB'], false),
-  ('Infinix', 'Infinix', 'Infinix', 'IF', ARRAY['4GB+128GB','8GB+256GB','12GB+256GB'], false),
-  ('Tecno', 'Tecno', 'Tecno', 'TC', ARRAY['64GB','128GB','256GB','512GB'], false),
-  ('Honor', 'Honor', 'Honor', 'HN', ARRAY['6GB+128GB','8GB+256GB'], false),
-  ('Itel', 'Itel', 'Itel', 'IT', ARRAY['N/A','2GB+64GB','4GB+128GB'], false)
+  ('Realme', 'Realme', 'Realme', 'RM', ARRAY['4GB+64GB','4GB+128GB','6GB+128GB','4GB+256GB','6GB+256GB','8GB+128GB','8GB+256GB'], false),
+  ('Redmi', 'Redmi', 'Redmi', 'RD', ARRAY['3GB+64GB','4GB+64GB','4GB+128GB','4GB+256GB','6GB+128GB','8GB+128GB','8GB+256GB'], false),
+  ('Infinix', 'Infinix', 'Infinix', 'IF', ARRAY['4GB+64GB','4GB+128GB','6GB+128GB','8GB+128GB','6GB+256GB','8GB+256GB','12GB+256GB','12GB+512GB'], false),
+  ('Tecno', 'Tecno', 'Tecno', 'TC', ARRAY['4GB+64GB','4GB+128GB','6GB+128GB','8GB+128GB','12GB+128GB','4GB+256GB','8GB+256GB','12GB+256GB'], false),
+  ('Honor', 'Honor', 'Honor', 'HN', ARRAY['6GB+128GB','8GB+128GB','8GB+256GB','8GB+512GB'], false),
+  ('Itel', 'Itel', 'Itel', 'IT', ARRAY['N/A','2GB+64GB','3GB+64GB','4GB+64GB','4GB+128GB'], false)
 on conflict (name) do update set storages = excluded.storages;
 
 -- ============================================================
@@ -1228,49 +1237,82 @@ insert into public.product_models (category, name, colors) values
   ('Repair Parts', 'Apple Watch Battery', ARRAY['N/A'])
 on conflict (category, name) do nothing;
 
--- Real stock as of 2026-08-07. colors seeded as ['N/A'] — a working
--- placeholder (not a claim about real color options) so Add Device isn't
--- blocked with an empty color dropdown; swap for real colors via Manage
--- Catalog as actual stock color variants are confirmed.
+-- Real stock as of 2026-08-07. Colors below are researched real retail
+-- options per model (Philippines market where confirmed, since that's
+-- where this shop sells) rather than the earlier ['N/A'] placeholder —
+-- see the categories block above for how each brand's shared storage
+-- dropdown was derived from the same research.
+-- "Realme 16" / "Realme Techlife Neo Pad" are renamed to their real
+-- official names (Realme 16 5G / realme TechLife Pad Neo) below this
+-- insert — the names here were close but not what the device is actually
+-- sold as.
 insert into public.product_models (category, name, colors) values
   ('iPhone', 'iPhone 7', ARRAY['N/A']),
 
-  ('Redmi', 'Redmi A7', ARRAY['N/A']),
-  ('Redmi', 'Redmi A7 Pro', ARRAY['N/A']),
-  ('Redmi', 'Redmi 15C 5G', ARRAY['N/A']),
-  ('Redmi', 'Redmi Note 15', ARRAY['N/A']),
-  ('Redmi', 'Redmi Pad 2', ARRAY['N/A']),
+  ('Redmi', 'Redmi A7', ARRAY['Black','Sky Blue','Orchid Purple']),
+  ('Redmi', 'Redmi A7 Pro', ARRAY['Black','Mist Blue','Palm Green','Sunset Orange']),
+  ('Redmi', 'Redmi 15C 5G', ARRAY['Midnight Black','Mint Green','Dusk Purple']),
+  ('Redmi', 'Redmi Note 15', ARRAY['Black','Glacier Blue','Purple']),
+  ('Redmi', 'Redmi Pad 2', ARRAY['Graphite Gray','Mint Green','Lavender Purple']),
 
-  ('Vivo', 'Vivo Y05', ARRAY['N/A']),
-  ('Vivo', 'Vivo Y11d', ARRAY['N/A']),
-  ('Vivo', 'Vivo V70 FE', ARRAY['N/A']),
+  ('Vivo', 'Vivo Y05', ARRAY['Voyage Black','Haze Blue','Summit Platinum']),
+  ('Vivo', 'Vivo Y11d', ARRAY['Summit Platinum','Voyage Black']),
+  ('Vivo', 'Vivo V70 FE', ARRAY['Ocean Blue','Muse Purple','Urban Silver']),
 
-  ('Samsung', 'Galaxy A07', ARRAY['N/A']),
-  ('Samsung', 'Galaxy A17', ARRAY['N/A']),
-  ('Samsung', 'Galaxy A27', ARRAY['N/A']),
-  ('Samsung', 'Galaxy A16', ARRAY['N/A']),
-  ('Samsung', 'Galaxy A37', ARRAY['N/A']),
-  ('Samsung', 'Galaxy A57', ARRAY['N/A']),
+  ('Samsung', 'Galaxy A07', ARRAY['Black','Light Violet']),
+  ('Samsung', 'Galaxy A17', ARRAY['Black','Gray','Light Blue']),
+  ('Samsung', 'Galaxy A27', ARRAY['Black','Blue','Light Green','Light Pink']),
+  ('Samsung', 'Galaxy A16', ARRAY['Blue Black','Light Gray','Gold','Light Green']),
+  ('Samsung', 'Galaxy A37', ARRAY['Awesome Charcoal','Awesome Graygreen','Awesome Lavender','Awesome White']),
+  ('Samsung', 'Galaxy A57', ARRAY['Awesome Navy','Awesome Gray','Awesome Icyblue','Awesome Lilac']),
 
-  ('Infinix', 'Infinix Smart 20', ARRAY['N/A']),
-  ('Infinix', 'Infinix Hot 70', ARRAY['N/A']),
-  ('Infinix', 'Infinix Hot 60 Pro+', ARRAY['N/A']),
-  ('Infinix', 'Infinix Note Edge', ARRAY['N/A']),
-  ('Infinix', 'Infinix Note 60 Pro', ARRAY['N/A']),
-  ('Infinix', 'Infinix GT 50 Pro', ARRAY['N/A']),
+  ('Infinix', 'Infinix Smart 20', ARRAY['Shadow Black','Cloudline Blue','Polaris Titanium','Sunlike Orange']),
+  ('Infinix', 'Infinix Hot 70', ARRAY['Night Pulse','Dive Blue','Silver Dancer','Thermo Orange','Green Texture','Quiet Violet']),
+  ('Infinix', 'Infinix Hot 60 Pro+', ARRAY['Titanium Silver','Sleek Black','Coral Tides','Misty Violet']),
+  ('Infinix', 'Infinix Note Edge', ARRAY['Lunar Titanium','Silk Green','Stellar Blue','Shadow Black']),
+  ('Infinix', 'Infinix Note 60 Pro', ARRAY['Mist Titanium','Deep Ocean Blue','Solar Orange','Mocha Brown','Torino Black','Frost Silver']),
+  ('Infinix', 'Infinix GT 50 Pro', ARRAY['Black Abyss','Red Blaze','Silver Glacier']),
 
-  ('Realme', 'Realme Note 80', ARRAY['N/A']),
-  ('Realme', 'Realme Note 70', ARRAY['N/A']),
-  ('Realme', 'Realme C100i', ARRAY['N/A']),
-  ('Realme', 'Realme C85 5G', ARRAY['N/A']),
-  ('Realme', 'Realme C100', ARRAY['N/A']),
-  ('Realme', 'Realme 16', ARRAY['N/A']),
-  ('Realme', 'Realme Techlife Neo Pad', ARRAY['N/A']),
+  ('Realme', 'Realme Note 80', ARRAY['Glacier Blue','Storm Black']),
+  ('Realme', 'Realme Note 70', ARRAY['Beach Gold','Obsidian Black']),
+  ('Realme', 'Realme C100i', ARRAY['Grey','Purple']),
+  ('Realme', 'Realme C85 5G', ARRAY['Parrot Purple','Peacock Green']),
+  ('Realme', 'Realme C100', ARRAY['Eternal Brown','Triumphant Purple','Glory White']),
+  ('Realme', 'Realme 16', ARRAY['Air Black','Air White']),
+  ('Realme', 'Realme Techlife Neo Pad', ARRAY['Sky Blue','Storm Grey']),
 
-  ('Honor', 'Honor X8D', ARRAY['N/A']),
-  ('Honor', 'Honor Pad X9a', ARRAY['N/A']),
+  ('Honor', 'Honor X8D', ARRAY['Light Blue','Velvet Grey','Velvet Black']),
+  ('Honor', 'Honor Pad X9a', ARRAY['Gray']),
 
-  ('Itel', 'Itel Power 120', ARRAY['N/A']),
-  ('Itel', 'Itel A100c', ARRAY['N/A']),
-  ('Itel', 'Itel Vista Tab 30s', ARRAY['N/A'])
-on conflict (category, name) do nothing;
+  -- Itel Power 120 is a real 2G feature phone, not a smartphone (4MB
+  -- RAM/storage, no Android) — 'N/A' here isn't a placeholder, it's
+  -- accurate: forcing a GB-scale color/storage pick onto it would
+  -- misrepresent the actual device.
+  ('Itel', 'Itel Power 120', ARRAY['Blue','Green','Ice Blue']),
+  ('Itel', 'Itel A100c', ARRAY['Pure Black','Titanium Gold','Blaze Blue','Silk Green']),
+  ('Itel', 'Itel Vista Tab 30s', ARRAY['Deep Grey']),
+
+  -- Tecno had a category/prefix set up but no real models were ever
+  -- added to it — these six are researched current PH-market stock,
+  -- spanning the same budget-to-lower-midrange range as its Transsion
+  -- sibling brands (Infinix, Itel) already in this catalog.
+  ('Tecno', 'Tecno Spark Go 3', ARRAY['Titanium Grey','Ink Black','Galaxy Blue','Aurora Purple']),
+  ('Tecno', 'Tecno Spark 40C', ARRAY['Ink Black','Titanium Grey','Ripple Blue','Veil White']),
+  ('Tecno', 'Tecno Spark 40', ARRAY['Ink Black','Titanium Grey','Veil White','Mirage Blue','Sun Orange']),
+  ('Tecno', 'Tecno Camon 40', ARRAY['Galaxy Black','Glacier White','Emerald Lake Green','Emerald Glow Green']),
+  ('Tecno', 'Tecno Pova 7', ARRAY['Geek Black','Magic Silver','Oasis Green']),
+  ('Tecno', 'Tecno Camon 40 Pro 5G', ARRAY['Galaxy Black','Emerald Lake Green','Glacier White','Sandy Titanium'])
+on conflict (category, name) do update set colors = excluded.colors;
+
+-- Renamed to what these devices are actually sold as -- "Realme 16" and
+-- "Realme Techlife Neo Pad" were close but not the real official names.
+-- Renaming (not just adding a new row) so Manage Catalog doesn't end up
+-- with both an old, inaccurate entry and a new correct one side by side.
+-- Existing devices already logged under the old name are untouched
+-- (device_name is free text, not a foreign key to this table) -- this
+-- only changes what new dropdown selections produce going forward.
+update public.product_models set name = 'Realme 16 5G'
+where category = 'Realme' and name = 'Realme 16';
+
+update public.product_models set name = 'realme TechLife Pad Neo'
+where category = 'Realme' and name = 'Realme Techlife Neo Pad';
