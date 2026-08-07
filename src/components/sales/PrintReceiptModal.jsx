@@ -6,21 +6,47 @@ const STORE_ADDRESS = ["Balintawak, Mambajao,", "Camiguin 911"];
 const STORE_PHONE = "0916 245 6667";
 const RETURN_POLICY = "No returns after 7 days.";
 
-const peso = (n) => "₱" + (Number(n) || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// A real Android-tablet print showed every ₱ sign missing — that print
+// path's font apparently doesn't carry the peso glyph and just drops it,
+// even though the same "₱" prints fine through the desktop/thermal-driver
+// path. "P" is plain ASCII, safe on any printer's built-in font regardless
+// of Unicode support.
+const peso = (n) => "P" + (Number(n) || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-// A real printed test revealed the thermal driver wasn't honoring the
-// named @page width — content rendered against a much wider assumed
-// canvas, so anything past the paper's actual ~46mm printable area (long
-// payment method values, longer totals) never printed at all rather than
-// wrapping. flex-wrap lets the value drop to its own line instead of
-// running off the page when it doesn't fit next to the label; min-w-0
-// overrides flex's default min-width:auto, which otherwise blocks a flex
-// child from shrinking/wrapping even when its sibling needs the room.
-function Row({ label, children }) {
+// That same real print also showed every label/value row (Subtotal,
+// TOTAL, item prices) collapsed into plain concatenated text with a
+// single space between them instead of spread label-left/value-right —
+// exactly what happens when a print path extracts plain text from the
+// page instead of rendering it visually, discarding flexbox (and any
+// other CSS layout) entirely. Building these rows as one manually
+// space-padded monospace string instead survives that: the alignment
+// IS the text content, not a layout effect a stripped-CSS print path can
+// undo. Kept as a single text node (not separate label/value elements)
+// so a plain-text extractor can't insert its own extra space between
+// them the way it did with the old two-span flex row.
+//
+// 30 characters is a conservative width for the 46mm print area at the
+// print-only 8.5px font these rows use below — provisional, like every
+// other physical measurement in this file, pending a real test print.
+// white-space: pre-wrap preserves the padding (unlike normal, which
+// collapses repeated spaces) while still wrapping instead of overflowing
+// horizontally if a line ends up longer than expected.
+const RECEIPT_CHARS = 30;
+
+function padLine(left, right) {
+  const gap = RECEIPT_CHARS - left.length - right.length;
+  if (gap < 1) {
+    // Doesn't fit on one line — value goes on its own line instead of
+    // running off the page, same reason flex-wrap existed before.
+    return `${left}\n${right.padStart(RECEIPT_CHARS)}`;
+  }
+  return `${left}${" ".repeat(gap)}${right}`;
+}
+
+function Row({ label, value }) {
   return (
-    <div className="flex flex-wrap justify-between gap-x-2">
-      <span className="text-gray-500">{label}</span>
-      <span className="min-w-0 text-right break-words">{children}</span>
+    <div className="text-xs print:text-[8.5px]" style={{ whiteSpace: "pre-wrap" }}>
+      {padLine(label, value)}
     </div>
   );
 }
@@ -122,11 +148,9 @@ function PrintReceiptModal({ receipt, onClose }) {
           <div className="border-t border-dashed border-gray-400 my-2.5" />
 
           <div className="space-y-0.5">
-            <Row label="Date:">
-              {formatDate(receipt.soldAt)} {formatTime(receipt.soldAt)}
-            </Row>
-            {receipt.customerName && <Row label="Customer:">{receipt.customerName}</Row>}
-            {receipt.customerPhone && <Row label="Contact:">{receipt.customerPhone}</Row>}
+            <Row label="Date:" value={`${formatDate(receipt.soldAt)} ${formatTime(receipt.soldAt)}`} />
+            {receipt.customerName && <Row label="Customer:" value={receipt.customerName} />}
+            {receipt.customerPhone && <Row label="Contact:" value={receipt.customerPhone} />}
           </div>
 
           <div className="border-t border-dashed border-gray-400 my-2.5" />
@@ -139,9 +163,8 @@ function PrintReceiptModal({ receipt, onClose }) {
                   <p className="text-gray-500">{[item.storage, item.color].filter(Boolean).join(" · ")}</p>
                 )}
                 {item.batchCode && <p className="text-gray-500">Batch: {item.batchCode}</p>}
-                <div className="flex flex-wrap justify-between gap-x-2 mt-0.5">
-                  <span>1 x {peso(item.price)}</span>
-                  <span className="min-w-0 text-right">{peso(item.price)}</span>
+                <div className="mt-0.5 text-xs print:text-[8.5px]" style={{ whiteSpace: "pre-wrap" }}>
+                  {padLine(`1 x ${peso(item.price)}`, peso(item.price))}
                 </div>
               </div>
             ))}
@@ -150,13 +173,14 @@ function PrintReceiptModal({ receipt, onClose }) {
           <div className="border-t border-dashed border-gray-400 my-2.5" />
 
           <div className="space-y-0.5">
-            <div className="flex flex-wrap justify-between gap-x-2">
-              <span className="text-gray-500">Subtotal</span>
-              <span className="min-w-0 text-right">{peso(subtotal)}</span>
+            <div className="text-xs print:text-[8.5px]" style={{ whiteSpace: "pre-wrap" }}>
+              {padLine("Subtotal", peso(subtotal))}
             </div>
-            <div className="flex flex-wrap justify-between gap-x-2 font-bold text-sm border-t border-gray-900 pt-1.5 mt-1">
-              <span>{isInstallment ? "DEVICE TOTAL" : "TOTAL"}</span>
-              <span className="min-w-0 text-right">{peso(subtotal)}</span>
+            <div
+              className="font-bold text-sm print:text-[8.5px] border-t border-gray-900 pt-1.5 mt-1"
+              style={{ whiteSpace: "pre-wrap" }}
+            >
+              {padLine(isInstallment ? "DEVICE TOTAL" : "TOTAL", peso(subtotal))}
             </div>
           </div>
 
@@ -165,10 +189,10 @@ function PrintReceiptModal({ receipt, onClose }) {
               <div className="border-t border-dashed border-gray-400 my-2.5" />
               <div className="space-y-0.5">
                 {receipt.referenceNumber && receipt.referenceNumber !== "N/A" && (
-                  <Row label="Reference #:">{receipt.referenceNumber}</Row>
+                  <Row label="Reference #:" value={receipt.referenceNumber} />
                 )}
-                {receipt.downPayment != null && <Row label="Down Payment:">{peso(receipt.downPayment)}</Row>}
-                {receipt.balance != null && <Row label="Balance:">{peso(receipt.balance)}</Row>}
+                {receipt.downPayment != null && <Row label="Down Payment:" value={peso(receipt.downPayment)} />}
+                {receipt.balance != null && <Row label="Balance:" value={peso(receipt.balance)} />}
               </div>
             </>
           )}
