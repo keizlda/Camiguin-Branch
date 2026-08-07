@@ -736,6 +736,7 @@ function AddDevice() {
         onScanned={(value) => {
           update("batchCode", value);
           setShowScanBatchCode(false);
+          showToast(`Scanned "${value}".`);
         }}
         onClose={() => setShowScanBatchCode(false)}
       />

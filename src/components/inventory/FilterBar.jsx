@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Search, Filter, Camera } from "lucide-react";
 import { useServiceData } from "../../hooks/useServiceData";
 import { getDeviceCategories, getDeviceStorages, getSuppliers } from "../../services/referenceService";
+import { useToast } from "../../hooks/useToast";
 import ScanBarcodeModal from "../common/ScanBarcodeModal";
 
 function FilterBar({ filters, setFilters, onApply, onClear, kinds = [] }) {
@@ -11,6 +12,7 @@ function FilterBar({ filters, setFilters, onApply, onClear, kinds = [] }) {
   const statuses = ["Available", "Sold", "Reserved", "Customer Returned", "Supplier Defective", "Returned"];
   const conditions = ["Brand New", "Pre-owned"];
   const [showScan, setShowScan] = useState(false);
+  const showToast = useToast();
 
   const update = (key, value) => setFilters({ ...filters, [key]: value });
 
@@ -161,6 +163,7 @@ function FilterBar({ filters, setFilters, onApply, onClear, kinds = [] }) {
           onScanned={(value) => {
             update("search", value);
             setShowScan(false);
+            showToast(`Scanned "${value}" — click Search to filter.`);
           }}
           onClose={() => setShowScan(false)}
         />

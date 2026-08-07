@@ -7,8 +7,12 @@ import Barcode from "../common/Barcode";
 // Reports/Financial's "Print Report": the on-screen preview here is
 // print:hidden, and the actual label grid (.label-sheet, styled in
 // index.css) is hidden on screen and only shown when printing.
+// Matches the 6 columns x 11 rows grid in index.css's .label-sheet.
+const LABELS_PER_PAGE = 66;
+
 function PrintLabelsModal({ devices, onClose }) {
   const handlePrint = () => window.print();
+  const pageCount = Math.ceil(devices.length / LABELS_PER_PAGE);
 
   return (
     <>
@@ -33,7 +37,8 @@ function PrintLabelsModal({ devices, onClose }) {
         <div className="px-5 py-4 max-h-[50vh] overflow-y-auto">
           <p className="text-xs text-gray-400 mb-3">
             Prints on a 29×21mm A4 adhesive label sheet (normal printer, not the thermal one) — 6 columns × 11
-            rows, 66 labels per sheet, with a new page started automatically past that.
+            rows, {LABELS_PER_PAGE} labels per sheet. This batch: {devices.length} label{devices.length === 1 ? "" : "s"}{" "}
+            across {pageCount} page{pageCount === 1 ? "" : "s"}.
           </p>
           <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
             {devices.map((d) => (

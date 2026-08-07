@@ -28,7 +28,13 @@ function QRCode({ value, className = "" }) {
   if (!cells) return null;
 
   return (
-    <svg viewBox={`0 0 ${cells.width} ${cells.height}`} className={className} shapeRendering="crispEdges">
+    <svg
+      viewBox={`0 0 ${cells.width} ${cells.height}`}
+      className={className}
+      shapeRendering="crispEdges"
+      role="img"
+      aria-label="QR code — scan with your phone's camera to open a scan link"
+    >
       <rect width={cells.width} height={cells.height} fill="white" />
       {cells.on.map((key) => {
         const [x, y] = key.split("-").map(Number);

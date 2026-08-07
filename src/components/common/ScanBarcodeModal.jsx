@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Camera, AlertTriangle, Smartphone, Loader2 } from "lucide-react";
+import { X, Camera, AlertTriangle, Smartphone, Loader2, RefreshCw, Copy, Check } from "lucide-react";
 import { BrowserMultiFormatReader, BrowserCodeReader, BarcodeFormat } from "@zxing/browser";
 import { supabase } from "../../lib/supabaseClient";
 import QRCode from "./QRCode";
@@ -32,6 +32,11 @@ function ScanBarcodeModal({ onScanned, onClose }) {
   const videoRef = useRef(null);
   const controlsRef = useRef(null);
   const [deviceError, setDeviceError] = useState("");
+  // Bumped by the error state's "Try Again" button to force the camera
+  // effect below to re-run without needing to close and reopen the whole
+  // modal — e.g. after granting a permission that was denied the first time.
+  const [retryKey, setRetryKey] = useState(0);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     if (mode !== "device") return;
@@ -75,7 +80,23 @@ function ScanBarcodeModal({ onScanned, onClose }) {
       controlsRef.current?.stop();
       BrowserCodeReader.releaseAllStreams();
     };
-  }, [mode]);
+  }, [mode, retryKey]);
+
+  const handleCopyLink = () => {
+    navigator.clipboard
+      .writeText(scanUrl)
+      .then(() => {
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2000);
+      })
+      .catch(() => {
+        // Clipboard access can fail (permissions, insecure context) — the
+        // QR code itself still works as the primary path, this is only a
+        // fallback for when scanning it doesn't (e.g. screen glare), so
+        // silently doing nothing here just means that fallback isn't
+        // available rather than breaking the modal.
+      });
+  };
 
   useEffect(() => {
     if (mode !== "phone") return;
@@ -125,9 +146,18 @@ function ScanBarcodeModal({ onScanned, onClose }) {
         <div className="p-5">
           {mode === "device" ? (
             deviceError ? (
-              <div className="bg-red-50 border border-red-100 rounded-lg p-3 flex items-start gap-2">
-                <AlertTriangle size={15} className="text-red-500 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-red-700">{deviceError}</p>
+              <div>
+                <div className="bg-red-50 border border-red-100 rounded-lg p-3 flex items-start gap-2">
+                  <AlertTriangle size={15} className="text-red-500 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-red-700">{deviceError}</p>
+                </div>
+                <button
+                  onClick={() => setRetryKey((k) => k + 1)}
+                  className="flex items-center gap-1.5 mx-auto mt-3 px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+                >
+                  <RefreshCw size={13} />
+                  Try Again
+                </button>
               </div>
             ) : (
               <>
@@ -148,6 +178,13 @@ function ScanBarcodeModal({ onScanned, onClose }) {
                 Scan this with your phone's camera app (not the button above — your phone's own camera), then scan
                 the barcode on the page that opens.
               </p>
+              <button
+                onClick={handleCopyLink}
+                className="flex items-center gap-1.5 mx-auto mt-3 px-3 py-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50"
+              >
+                {linkCopied ? <Check size={12} className="text-green-600" /> : <Copy size={12} />}
+                {linkCopied ? "Copied!" : "Can't scan? Copy the link instead"}
+              </button>
             </div>
           )}
         </div>
