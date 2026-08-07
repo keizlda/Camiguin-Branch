@@ -86,7 +86,7 @@
        cell's outer 29x21mm footprint (box-sizing: border-box) or the
        grid gaps between cells — kept just large enough that the barcode
        doesn't sit flush against the cut line. */
-    padding: 0.5mm;
+    padding: 0.3mm;
     border: 1px dashed #999;
     display: flex;
     align-items: center;

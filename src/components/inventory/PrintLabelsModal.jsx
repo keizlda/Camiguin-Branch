@@ -67,12 +67,14 @@ function PrintLabelsModal({ devices, onClose }) {
       {devices.map((d) => (
         <div key={d.id} className="label-cell">
           {/* w-full scales to the cell's content width (29mm minus the
-              0.5mm padding on each side, index.css) — 28mm, above the
-              simulated-safe 26mm+ threshold with room to spare. height
-              is bar thickness, not physical size — 180 fills most of the
-              cell's vertical room (~16mm of the ~20mm usable) without
-              touching the cell's own 29x21mm footprint. */}
-          <Barcode value={d.batchCode} height={180} className="w-full h-auto" />
+              0.3mm padding on each side, index.css) — 28.4mm, still
+              comfortably above the simulated-safe 26mm+ threshold. height
+              is bar thickness, not physical size — 210 fills ~92% of the
+              cell's usable vertical room (~18.7mm of ~20.4mm) without
+              touching the cell's own 29x21mm footprint. overflow:hidden
+              on .label-cell is the safety net if real print metrics run
+              slightly larger than this estimate. */}
+          <Barcode value={d.batchCode} height={210} className="w-full h-auto" />
         </div>
       ))}
     </div>
