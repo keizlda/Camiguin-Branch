@@ -117,7 +117,7 @@
 @media print {
   @page receipt {
     size: 58mm auto;
-    margin: 2mm;
+    margin: 0;
   }
 
   .receipt-page {

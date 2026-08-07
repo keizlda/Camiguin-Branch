@@ -95,7 +95,7 @@ function PrintReceiptModal({ receipt, onClose }) {
             centered width, so whatever margin exists is on the right,
             away from where content has been getting cut. */}
         <div
-          className="mx-auto w-[320px] max-w-full p-5 print:w-[46mm] print:ml-0 print:mr-auto print:p-1 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
+          className="mx-auto w-[320px] max-w-full p-5 print:w-[46mm] print:ml-0 print:mr-auto print:p-0 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
           style={{ fontFamily: "'Courier New', Courier, monospace" }}
         >
           <div className="text-center">
