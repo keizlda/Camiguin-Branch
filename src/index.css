@@ -115,25 +115,27 @@
    reliably at that 46mm width — see getSaleReference in
    PrintReceiptModal.jsx.
    A real print showed a large blank gap after the content, before the
-   cut. Page margin and the content's own padding were already 0, so
-   nothing left in this app's own spacing could explain it -- the actual
-   bug was `size: 58mm auto`. Per the CSS Paged Media spec, `size` takes
-   either one/two lengths, or the bare `auto` keyword, not a length mixed
-   with `auto` -- that declaration is invalid, and on top of that this
-   printer's driver was set to "Use Generic Printer Features" (macOS
-   Printers & Scanners), which ignores @page sizing from the page
-   entirely in favor of a generic default (US Letter) -- between the two,
-   the page was never actually 58mm-wide-and-short in practice.
-   The 200mm height below is only a fallback for if the measurement in
-   PrintReceiptModal.jsx's beforeprint handler doesn't run for some
-   reason -- the real height is computed at print time from the receipt
-   content's own actual rendered size (see that file), tight to whatever
-   this specific receipt contains instead of a fixed guess that either
-   wastes paper on a short receipt or truncates a long one. */
+   cut. Two real causes stacked: `size: 58mm auto` is invalid per the CSS
+   Paged Media spec (`size` takes lengths or the bare `auto` keyword, not
+   a length mixed with `auto`), and on top of that this printer's driver
+   was set to "Use Generic Printer Features" (macOS Printers & Scanners),
+   which ignores @page sizing entirely in favor of a generic default (US
+   Letter) -- between the two, the page was never actually 58mm-and-short
+   in practice.
+   With "Use Generic Printer Features" off, a fixed size here IS honored
+   (confirmed on a real print). A follow-up attempt tried computing the
+   exact height at print time from the receipt content's own rendered
+   size instead of guessing a fixed one -- but that measurement came back
+   short of what print layout actually needed, pushing the footer onto a
+   second page (worse than wasted paper: that's lost content). Back to a
+   fixed size, generous enough to safely fit a normal few-item receipt
+   with real margin to spare rather than being cut close again, with
+   margin doing double duty as requested breathing room at the top and
+   bottom (not just the previous minimal spacing). */
 @media print {
   @page receipt {
-    size: 58mm 200mm;
-    margin: 0;
+    size: 58mm 220mm;
+    margin: 12.7mm 0;
   }
 
   .receipt-page {
