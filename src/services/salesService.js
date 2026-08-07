@@ -78,8 +78,9 @@ export async function getSalesHistory() {
         // simply because they all join in the same parent sales record.
         orderType: item.sales?.order_type,
         paymentStatus: item.sales?.payment_status,
-        // Financing methods only (Skyro/Home Credit/Credit Card) — recorded
-        // in place of a reference number, since a financed sale doesn't have one.
+        // Financing methods only (Skyro/PayJoy/Credit Card, or Home Credit
+        // on an older sale) — recorded in place of a reference number,
+        // since a financed sale doesn't have one.
         downPayment: item.sales?.down_payment ?? null,
         balance: item.sales?.balance ?? null,
         // The device's own status wins when it's since been returned — the

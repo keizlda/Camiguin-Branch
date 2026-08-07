@@ -25,14 +25,14 @@ const paymentOptions = [
 
 const installmentOptions = [
   { id: "Skyro", label: "Skyro", icon: CalendarClock },
-  { id: "Home Credit", label: "Home Credit", icon: Building2 },
+  { id: "PayJoy", label: "PayJoy", icon: Building2 },
 ];
 
 // These record a Down Payment/Balance instead of a reference number —
 // Credit Card is included even though it stays in the regular Payment
 // Method group (not Installment), since it's usable for any cart including
-// accessories, unlike Skyro/Home Credit which are device-financing only.
-const FINANCING_METHODS = ["Skyro", "Home Credit", "Credit Card"];
+// accessories, unlike Skyro/PayJoy which are device-financing only.
+const FINANCING_METHODS = ["Skyro", "PayJoy", "Credit Card"];
 
 // Installment financing is for actual devices — a phone case or a battery
 // isn't something a lender finances, and mixing one into a cart that's
@@ -484,8 +484,16 @@ function NewSale() {
         </div>
       </div>
 
-      {/* Right: Cart / Order Summary */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 h-fit sticky top-20">
+      {/* Right: Cart / Order Summary — sticky so it stays put while Steps
+          1/2 scroll, but with payment method + installment fields + notes
+          all stacked below the item list, its own natural height can
+          exceed the viewport just as easily. Capping it to the viewport
+          height (below the sticky offset) and letting it scroll in place
+          means reaching the Process Sale button never needs the whole
+          page to scroll — the item list's own inner scroll (below) still
+          keeps a long cart from pushing payment options far down even
+          within this panel's own scroll. */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 h-fit sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center font-semibold">3</span>

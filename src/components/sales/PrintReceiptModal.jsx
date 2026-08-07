@@ -69,6 +69,11 @@ function PrintReceiptModal({ receipt, onClose }) {
     (receipt.referenceNumber && receipt.referenceNumber !== "N/A") ||
     receipt.downPayment != null ||
     receipt.balance != null;
+  // Down Payment/Balance only get recorded for a financed sale (see
+  // FINANCING_METHODS in NewSale.jsx) — labeling the total explicitly as
+  // the device's full price avoids it reading as "amount paid today" when
+  // that's actually the down payment shown just below it.
+  const isInstallment = receipt.downPayment != null || receipt.balance != null;
   const handlePrint = () => window.print();
 
   return (
@@ -150,7 +155,7 @@ function PrintReceiptModal({ receipt, onClose }) {
               <span className="min-w-0 text-right">{peso(subtotal)}</span>
             </div>
             <div className="flex flex-wrap justify-between gap-x-2 font-bold text-sm border-t border-gray-900 pt-1.5 mt-1">
-              <span>TOTAL</span>
+              <span>{isInstallment ? "DEVICE TOTAL" : "TOTAL"}</span>
               <span className="min-w-0 text-right">{peso(subtotal)}</span>
             </div>
           </div>

@@ -21,7 +21,9 @@ function EditSaleModal({ row, onClose, onSaved }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const isFinancing = ["Skyro", "Home Credit", "Credit Card"].includes(row.payment);
+  // Home Credit is no longer offered for new sales (replaced by PayJoy) but
+  // stays here so an old sale that used it still shows its financing fields.
+  const isFinancing = ["Skyro", "Home Credit", "PayJoy", "Credit Card"].includes(row.payment);
   const isBulk = row.orderType === "Bulk";
 
   const handleSubmit = async (e) => {

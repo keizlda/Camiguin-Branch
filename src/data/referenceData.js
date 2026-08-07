@@ -21,6 +21,9 @@ export function isAccessoryLikeCategory(category) {
   return category === "Accessories" || category === "Repair Parts";
 }
 
+// Home Credit is no longer offered for new sales (see NewSale.jsx's
+// installmentOptions, replaced by PayJoy) but stays here so Sales History's
+// payment-method filter can still find sales that used it.
 export const paymentMethods = [
   "Cash",
   "GCash",
@@ -29,6 +32,7 @@ export const paymentMethods = [
   "Check",
   "Skyro",
   "Home Credit",
+  "PayJoy",
   "Swap",
 ];
 
