@@ -27,7 +27,7 @@ function Barcode({ value, height = 40, className = "" }) {
     });
   }, [value, height]);
 
-  return <svg ref={svgRef} className={className} />;
+  return <svg ref={svgRef} className={className} shapeRendering="crispEdges" />;
 }
 
 export default Barcode;

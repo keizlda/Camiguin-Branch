@@ -82,7 +82,11 @@
     width: 29mm;
     height: 21mm;
     box-sizing: border-box;
-    padding: 1mm;
+    /* Padding here only trims the barcode's own content area, not the
+       cell's outer 29x21mm footprint (box-sizing: border-box) or the
+       grid gaps between cells — kept just large enough that the barcode
+       doesn't sit flush against the cut line. */
+    padding: 0.5mm;
     border: 1px dashed #999;
     display: flex;
     align-items: center;
