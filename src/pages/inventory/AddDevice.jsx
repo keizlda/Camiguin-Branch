@@ -301,7 +301,11 @@ function AddDevice() {
     }
   };
 
-  if (!catalog) return null;
+  // catalog is legitimately undefined in two different cases: the product
+  // catalog hasn't finished its initial fetch yet (bail out, nothing
+  // renderable yet) vs. "Others (specify)" is deliberately selected (a
+  // real, intentional state with its own form below, not a loading state).
+  if (!catalog && !isOtherCategory) return null;
 
   return (
     <>
