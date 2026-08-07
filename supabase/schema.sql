@@ -1168,7 +1168,9 @@ insert into public.categories (name, db_value, brand, prefix, storages, is_acces
   ('Infinix', 'Infinix', 'Infinix', 'IF', ARRAY['4GB+64GB','4GB+128GB','6GB+128GB','8GB+128GB','6GB+256GB','8GB+256GB','12GB+256GB','12GB+512GB'], false),
   ('Tecno', 'Tecno', 'Tecno', 'TC', ARRAY['4GB+64GB','4GB+128GB','6GB+128GB','8GB+128GB','12GB+128GB','4GB+256GB','8GB+256GB','12GB+256GB'], false),
   ('Honor', 'Honor', 'Honor', 'HN', ARRAY['6GB+128GB','8GB+128GB','8GB+256GB','8GB+512GB'], false),
-  ('Itel', 'Itel', 'Itel', 'IT', ARRAY['N/A','2GB+64GB','3GB+64GB','4GB+64GB','4GB+128GB'], false)
+  ('Itel', 'Itel', 'Itel', 'IT', ARRAY['N/A','2GB+64GB','3GB+64GB','4GB+64GB','4GB+128GB'], false),
+  ('POCO', 'POCO', 'POCO', 'PC', ARRAY['3GB+64GB','4GB+128GB','6GB+128GB','8GB+256GB','8GB+512GB','12GB+512GB'], false),
+  ('OPPO', 'OPPO', 'OPPO', 'OP', ARRAY['4GB+64GB','4GB+128GB','6GB+128GB','8GB+128GB','4GB+256GB','8GB+256GB','12GB+256GB','12GB+512GB'], false)
 on conflict (name) do update set storages = excluded.storages;
 
 -- ============================================================
@@ -1301,7 +1303,30 @@ insert into public.product_models (category, name, colors) values
   ('Tecno', 'Tecno Spark 40', ARRAY['Ink Black','Titanium Grey','Veil White','Mirage Blue','Sun Orange']),
   ('Tecno', 'Tecno Camon 40', ARRAY['Galaxy Black','Glacier White','Emerald Lake Green','Emerald Glow Green']),
   ('Tecno', 'Tecno Pova 7', ARRAY['Geek Black','Magic Silver','Oasis Green']),
-  ('Tecno', 'Tecno Camon 40 Pro 5G', ARRAY['Galaxy Black','Emerald Lake Green','Glacier White','Sandy Titanium'])
+  ('Tecno', 'Tecno Camon 40 Pro 5G', ARRAY['Galaxy Black','Emerald Lake Green','Glacier White','Sandy Titanium']),
+
+  -- POCO (Xiaomi's sub-brand, same market segment as Redmi) and OPPO
+  -- (BBK sibling to Vivo/Realme, already stocked) -- researched current
+  -- PH-market models. Both brands have heavy same-family name collisions
+  -- (e.g. POCO M8 / M8 Pro / M8s are three different phones with
+  -- different color sets; OPPO A5 / A5 5G and A6 / A6 Pro / A6x / A6s /
+  -- A6c / A6t are all separate current SKUs) -- these are specifically
+  -- the plain, non-Pro/non-5G-suffixed base models unless the name says
+  -- otherwise, since that's what the model name alone unambiguously
+  -- refers to.
+  ('POCO', 'POCO C71', ARRAY['Power Black','Cool Blue','Desert Gold']),
+  ('POCO', 'POCO C75', ARRAY['Black','Green','Gold']),
+  ('POCO', 'POCO M8 5G', ARRAY['Black','Green','Silver']),
+  ('POCO', 'POCO M8 Pro 5G', ARRAY['Black','Silver','Green']),
+  ('POCO', 'POCO M8s 5G', ARRAY['Black','White']),
+  ('POCO', 'POCO X8 Pro', ARRAY['Black','White','Mint Green']),
+
+  ('OPPO', 'OPPO A3x', ARRAY['Nebula Red','Ocean Blue']),
+  ('OPPO', 'OPPO A5i', ARRAY['Starry Purple','Nebula Red']),
+  ('OPPO', 'OPPO A5', ARRAY['Mist White','Aurora Green']),
+  ('OPPO', 'OPPO A60', ARRAY['Midnight Purple','Ripple Blue']),
+  ('OPPO', 'OPPO A6', ARRAY['Sakura Pink','Sapphire Blue','Aurora Gold']),
+  ('OPPO', 'OPPO Reno14 F 5G', ARRAY['Opal Blue','Luminous Green','Glossy Pink'])
 on conflict (category, name) do update set colors = excluded.colors;
 
 -- Renamed to what these devices are actually sold as -- "Realme 16" and
