@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { X, Printer } from "lucide-react";
 
 const statusStyles = {
   Sold: "bg-blue-100 text-blue-600",
@@ -12,7 +12,11 @@ const statusStyles = {
 // Lists every unit logged against one bulk shipment (one supplier, one day) —
 // opened from the grouped shipment row on All Devices so staff don't have to
 // hunt through the full device list to see what's actually arrived so far.
-function ShipmentUnitsModal({ group, onClose, onView }) {
+// Print Labels here is scoped to exactly group.units — this shipment's own
+// logged units, not the checkbox-selected rows elsewhere on All Devices —
+// so a whole order's barcodes can be printed in one go without hunting
+// them down individually in the full list.
+function ShipmentUnitsModal({ group, onClose, onView, onPrintLabels }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl">
@@ -69,12 +73,23 @@ function ShipmentUnitsModal({ group, onClose, onView }) {
           <p className="text-xs text-gray-400">
             {group.units.length} of {group.quantityExpected} expected unit{group.quantityExpected === 1 ? "" : "s"} logged
           </p>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
-          >
-            Close
-          </button>
+          <div className="flex gap-3">
+            {group.units.length > 0 && (
+              <button
+                onClick={() => onPrintLabels(group.units)}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+              >
+                <Printer size={14} />
+                Print Labels ({group.units.length})
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>

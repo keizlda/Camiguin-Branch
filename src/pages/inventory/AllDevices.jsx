@@ -289,6 +289,10 @@ function AllDevices() {
             setShipmentGroup(null);
             setViewDevice(unit);
           }}
+          onPrintLabels={(units) => {
+            setShipmentGroup(null);
+            setPrintDevices(units);
+          }}
         />
       )}
 
