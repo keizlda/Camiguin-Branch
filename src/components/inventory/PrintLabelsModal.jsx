@@ -32,8 +32,8 @@ function PrintLabelsModal({ devices, onClose }) {
 
         <div className="px-5 py-4 max-h-[50vh] overflow-y-auto">
           <p className="text-xs text-gray-400 mb-3">
-            Prints as a sheet of cut-apart labels (3×1.2 in each, 8 per page) — batch code as a Code128 barcode
-            with the code printed underneath.
+            Prints on a 21×29mm A4 adhesive label sheet (normal printer, not the thermal one) — the barcode is
+            rotated to run along the label's long edge so it stays scannable at that size.
           </p>
           <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
             {devices.map((d) => (
@@ -65,8 +65,15 @@ function PrintLabelsModal({ devices, onClose }) {
         descendant), and this is all that shows when printing. */}
     <div className="hidden print:block label-sheet">
       {devices.map((d) => (
-        <div key={d.id} className="label-cell flex flex-col items-center justify-center px-2">
-          <Barcode value={d.batchCode} height={36} className="w-full h-auto" />
+        <div key={d.id} className="label-cell">
+          {/* .label-rotate's own width/height (28mm x 19mm, index.css) are
+              pre-rotation — rotating 90deg swaps them visually to 19mm wide
+              x 28mm tall, fitting the 21mm x 29mm cell. The barcode scales
+              to fill that 28mm width, matching the simulated-safe 26mm+
+              threshold documented in index.css. */}
+          <div className="label-rotate">
+            <Barcode value={d.batchCode} height={36} className="w-full h-auto" />
+          </div>
         </div>
       ))}
     </div>

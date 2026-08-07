@@ -32,34 +32,57 @@
   }
 }
 
-/* Printed device labels (Add Device / All Devices "Print Label") — a grid
-   of cut-apart cells sized for a plain printer, not a dedicated label
-   printer or a pre-cut adhesive sheet. 3in x 1.2in cells (2 per row on a
-   letter page) with an explicit page break every 8th cell, so a batch of
-   labels always prints as clean, predictably-sized pages instead of
-   flowing however many happen to fit.
-   Originally 2in x 1in (4/row) — widened after real-world testing showed
-   a 12-13 character batch code plus a proper barcode quiet zone doesn't
-   leave enough margin for reliable phone-camera scanning at 2in; this
-   gives real safety margin instead of being exactly at the decode
-   threshold. */
+/* Printed device labels (Add Device / All Devices "Print Label") — sized
+   for a real pre-cut A4 adhesive label sheet (21mm x 29mm per label,
+   fed through a normal printer, not a thermal one), not a plain-paper
+   cut-apart grid like before.
+   21mm is too narrow for a reliably-scannable Code128 barcode at its
+   native orientation — simulated decode testing (jsbarcode's raw bar
+   pattern rendered into a synthetic BitMatrix at 300dpi, decoded with
+   @zxing/library the same way this project verifies every barcode
+   layout before shipping) showed the 21mm axis fails outright, while
+   the 29mm axis decodes reliably once the barcode's own content box is
+   26mm+ wide. So the barcode is rotated 90° (see .label-rotate,
+   applied in PrintLabelsModal.jsx) to run along the label's long axis:
+   its pre-rotation width (28mm, comfortably above that 26mm floor) ends
+   up as the visual height, and its pre-rotation height (19mm) ends up
+   as the visual width — fitting inside the 21mm x 29mm cell with margin
+   on both axes.
+   Column/row counts use auto-fill/auto-fit rather than a hardcoded
+   number per page, since the exact usable print area (and any gaps
+   between labels on the real sheet) depends on the specific product —
+   this fills as many as the page allows and wraps to further pages via
+   break-inside: avoid, rather than guessing a fixed per-page count that
+   might not match the physical sheet. Adjust page margins in the
+   browser's print dialog to align with the real sheet if needed. */
 @media print {
   .label-sheet {
     display: grid;
-    grid-template-columns: repeat(2, 3in);
-    justify-content: center;
+    grid-template-columns: repeat(auto-fill, 21mm);
+    grid-auto-rows: 29mm;
+    justify-content: start;
+    gap: 0;
   }
 
   .label-cell {
-    width: 3in;
-    height: 1.2in;
+    width: 21mm;
+    height: 29mm;
     box-sizing: border-box;
     border: 1px dashed #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
     break-inside: avoid;
   }
 
-  .label-cell:nth-child(8n) {
-    break-after: page;
+  .label-rotate {
+    width: 28mm;
+    height: 19mm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(90deg);
   }
 }
 
