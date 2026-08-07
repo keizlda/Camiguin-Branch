@@ -33,56 +33,49 @@
 }
 
 /* Printed device labels (Add Device / All Devices "Print Label") — sized
-   for a real pre-cut A4 adhesive label sheet (21mm x 29mm per label,
-   fed through a normal printer, not a thermal one), not a plain-paper
-   cut-apart grid like before.
-   21mm is too narrow for a reliably-scannable Code128 barcode at its
-   native orientation — simulated decode testing (jsbarcode's raw bar
+   for a real pre-cut A4 adhesive label sheet, fed through a normal
+   printer, not a thermal one.
+   The physical sticker is landscape — 29mm wide x 21mm tall, confirmed
+   against the real sheet, not the 21x29 portrait first assumed from the
+   stated "21x29mm" size alone. That's a better fit anyway: a Code128
+   barcode's natural shape is already wide/short, so the 29mm axis (its
+   width) lines up directly with the barcode's own long axis with no
+   rotation needed — simulated decode testing (jsbarcode's raw bar
    pattern rendered into a synthetic BitMatrix at 300dpi, decoded with
    @zxing/library the same way this project verifies every barcode
-   layout before shipping) showed the 21mm axis fails outright, while
-   the 29mm axis decodes reliably once the barcode's own content box is
-   26mm+ wide. So the barcode is rotated 90° (see .label-rotate,
-   applied in PrintLabelsModal.jsx) to run along the label's long axis:
-   its pre-rotation width (28mm, comfortably above that 26mm floor) ends
-   up as the visual height, and its pre-rotation height (19mm) ends up
-   as the visual width — fitting inside the 21mm x 29mm cell with margin
-   on both axes.
-   Column/row counts use auto-fill/auto-fit rather than a hardcoded
-   number per page, since the exact usable print area (and any gaps
-   between labels on the real sheet) depends on the specific product —
-   this fills as many as the page allows and wraps to further pages via
+   layout before shipping) showed a barcode needs 26mm+ of width to
+   decode reliably, comfortably inside 29mm. A first version rotated the
+   barcode 90° to force it onto a 21mm-wide portrait cell's long axis,
+   but a real print showed the rotation wasn't taking effect anyway, so
+   simplifying to match the sticker's actual orientation avoids relying
+   on CSS transform being honored by the print pipeline at all.
+   Column/row counts use auto-fill rather than a hardcoded number per
+   page, since the exact usable print area (and any gaps between labels
+   on the real sheet) depends on the specific product — this fills as
+   many as the page allows and wraps to further pages via
    break-inside: avoid, rather than guessing a fixed per-page count that
    might not match the physical sheet. Adjust page margins in the
    browser's print dialog to align with the real sheet if needed. */
 @media print {
   .label-sheet {
     display: grid;
-    grid-template-columns: repeat(auto-fill, 21mm);
-    grid-auto-rows: 29mm;
+    grid-template-columns: repeat(auto-fill, 29mm);
+    grid-auto-rows: 21mm;
     justify-content: start;
     gap: 0;
   }
 
   .label-cell {
-    width: 21mm;
-    height: 29mm;
+    width: 29mm;
+    height: 21mm;
     box-sizing: border-box;
+    padding: 1mm;
     border: 1px dashed #999;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
     break-inside: avoid;
-  }
-
-  .label-rotate {
-    width: 28mm;
-    height: 19mm;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transform: rotate(90deg);
   }
 }
 

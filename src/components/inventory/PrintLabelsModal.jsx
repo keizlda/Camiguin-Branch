@@ -32,8 +32,7 @@ function PrintLabelsModal({ devices, onClose }) {
 
         <div className="px-5 py-4 max-h-[50vh] overflow-y-auto">
           <p className="text-xs text-gray-400 mb-3">
-            Prints on a 21×29mm A4 adhesive label sheet (normal printer, not the thermal one) — the barcode is
-            rotated to run along the label's long edge so it stays scannable at that size.
+            Prints on a 29×21mm A4 adhesive label sheet (normal printer, not the thermal one).
           </p>
           <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
             {devices.map((d) => (
@@ -66,14 +65,13 @@ function PrintLabelsModal({ devices, onClose }) {
     <div className="hidden print:block label-sheet">
       {devices.map((d) => (
         <div key={d.id} className="label-cell">
-          {/* .label-rotate's own width/height (28mm x 19mm, index.css) are
-              pre-rotation — rotating 90deg swaps them visually to 19mm wide
-              x 28mm tall, fitting the 21mm x 29mm cell. The barcode scales
-              to fill that 28mm width, matching the simulated-safe 26mm+
-              threshold documented in index.css. */}
-          <div className="label-rotate">
-            <Barcode value={d.batchCode} height={36} className="w-full h-auto" />
-          </div>
+          {/* w-full scales to the cell's content width (29mm minus the
+              1mm padding on each side, index.css), matching the
+              simulated-safe 26mm+ threshold with room to spare. height
+              is generous (bar thickness, not physical size) since the
+              21mm-tall cell has vertical room the old 21x29 portrait
+              design didn't. */}
+          <Barcode value={d.batchCode} height={120} className="w-full h-auto" />
         </div>
       ))}
     </div>
