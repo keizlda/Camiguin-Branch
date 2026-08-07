@@ -1166,7 +1166,7 @@ insert into public.categories (name, db_value, brand, prefix, storages, is_acces
   ('Realme', 'Realme', 'Realme', 'RM', ARRAY['4GB+64GB','4GB+128GB','6GB+128GB','4GB+256GB','6GB+256GB','8GB+128GB','8GB+256GB'], false),
   ('Redmi', 'Redmi', 'Redmi', 'RD', ARRAY['3GB+64GB','4GB+64GB','4GB+128GB','4GB+256GB','6GB+128GB','8GB+128GB','8GB+256GB'], false),
   ('Infinix', 'Infinix', 'Infinix', 'IF', ARRAY['4GB+64GB','4GB+128GB','6GB+128GB','8GB+128GB','6GB+256GB','8GB+256GB','12GB+256GB','12GB+512GB'], false),
-  ('Tecno', 'Tecno', 'Tecno', 'TC', ARRAY['4GB+64GB','4GB+128GB','6GB+128GB','8GB+128GB','12GB+128GB','4GB+256GB','8GB+256GB','12GB+256GB'], false),
+  ('Tecno', 'Tecno', 'Tecno', 'TC', ARRAY['4GB+64GB','4GB+128GB','6GB+128GB','8GB+128GB','12GB+128GB','4GB+256GB','8GB+256GB','12GB+256GB','12GB+512GB'], false),
   ('Honor', 'Honor', 'Honor', 'HN', ARRAY['6GB+128GB','8GB+128GB','8GB+256GB','8GB+512GB'], false),
   ('Itel', 'Itel', 'Itel', 'IT', ARRAY['N/A','2GB+64GB','3GB+64GB','4GB+64GB','4GB+128GB'], false),
   ('POCO', 'POCO', 'POCO', 'PC', ARRAY['3GB+64GB','4GB+128GB','6GB+128GB','8GB+256GB','8GB+512GB','12GB+512GB'], false),
@@ -1304,6 +1304,12 @@ insert into public.product_models (category, name, colors) values
   ('Tecno', 'Tecno Camon 40', ARRAY['Galaxy Black','Glacier White','Emerald Lake Green','Emerald Glow Green']),
   ('Tecno', 'Tecno Pova 7', ARRAY['Geek Black','Magic Silver','Oasis Green']),
   ('Tecno', 'Tecno Camon 40 Pro 5G', ARRAY['Galaxy Black','Emerald Lake Green','Glacier White','Sandy Titanium']),
+  ('Tecno', 'Tecno Camon 50 Ultra 5G', ARRAY['Moonshadow Black','Cypress Green','Nebula Titanium','Luminous Orange','Misty Purple']),
+  -- Plain "Spark 50" is the 4G model specifically -- a separate "Spark 50
+  -- 5G" (different chipset, different color lineup) is also sold in PH;
+  -- this is the base model per the name alone, same convention used for
+  -- every other ambiguous name in this catalog.
+  ('Tecno', 'Tecno Spark 50', ARRAY['Halo Blue','Titanium Grey','Ink Black','Aurora Purple','Bloom Pink']),
 
   -- POCO (Xiaomi's sub-brand, same market segment as Redmi) and OPPO
   -- (BBK sibling to Vivo/Realme, already stocked) -- researched current
