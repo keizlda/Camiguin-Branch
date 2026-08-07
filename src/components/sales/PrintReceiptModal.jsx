@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { X, Printer } from "lucide-react";
 import { formatDate, formatTime } from "../../utils/datetime";
 import Barcode from "../common/Barcode";
@@ -70,6 +71,36 @@ function PrintReceiptModal({ receipt, onClose }) {
     receipt.downPayment != null ||
     receipt.balance != null;
   const handlePrint = () => window.print();
+  const contentRef = useRef(null);
+
+  // A fixed @page height (index.css) is either wasteful (padding out a
+  // short receipt with blank paper before the cut) or risks truncating a
+  // long one — and "auto" isn't valid there (CSS Paged Media's size
+  // property takes lengths or the bare auto keyword, not both mixed).
+  // Measuring instead: by the time beforeprint fires, the browser has
+  // already switched to print media styles, so the content's real
+  // rendered height here reflects the actual 46mm-wide print layout, not
+  // the wider on-screen preview — set the page to exactly that (plus a
+  // small buffer) so it's tight for whatever this specific receipt
+  // actually contains.
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      if (!contentRef.current) return;
+      const heightMm = contentRef.current.getBoundingClientRect().height * (25.4 / 96) + 5;
+      let styleEl = document.getElementById("receipt-page-size");
+      if (!styleEl) {
+        styleEl = document.createElement("style");
+        styleEl.id = "receipt-page-size";
+        document.head.appendChild(styleEl);
+      }
+      styleEl.textContent = `@page receipt { size: 58mm ${heightMm.toFixed(1)}mm; }`;
+    };
+    window.addEventListener("beforeprint", handleBeforePrint);
+    return () => {
+      window.removeEventListener("beforeprint", handleBeforePrint);
+      document.getElementById("receipt-page-size")?.remove();
+    };
+  }, []);
 
   return (
     <div className="receipt-page fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 print:static print:inset-auto print:block print:bg-transparent print:p-0 print:z-auto">
@@ -95,6 +126,7 @@ function PrintReceiptModal({ receipt, onClose }) {
             centered width, so whatever margin exists is on the right,
             away from where content has been getting cut. */}
         <div
+          ref={contentRef}
           className="mx-auto w-[320px] max-w-full p-5 print:w-[46mm] print:ml-0 print:mr-auto print:p-0 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
           style={{ fontFamily: "'Courier New', Courier, monospace" }}
         >
