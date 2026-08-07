@@ -7,6 +7,7 @@ import ScrollToTop from "./components/layout/ScrollToTop";
 import RequireAuth from "./components/auth/RequireAuth";
 import RequireAdmin from "./components/auth/RequireAdmin";
 import Login from "./pages/Login";
+import PhoneScan from "./pages/PhoneScan";
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import Sales from "./pages/Sales";
@@ -38,6 +39,12 @@ function App() {
         <ScrollToTop />
         <Routes>
           <Route path="/" element={<Login />} />
+          {/* Public — no RequireAuth. A phone lands here after scanning the
+              QR code shown by ScanBarcodeModal's "Scan with Phone" mode; it
+              only ever pushes a decoded barcode into an already-
+              authenticated desktop session via Realtime, never touches
+              data directly, so login here would just be friction. */}
+          <Route path="/scan/:sessionId" element={<PhoneScan />} />
           <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/inventory/*" element={<Inventory />} />
