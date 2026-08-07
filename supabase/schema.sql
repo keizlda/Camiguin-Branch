@@ -1308,8 +1308,10 @@ insert into public.product_models (category, name, colors) values
   -- Plain "Spark 50" is the 4G model specifically -- a separate "Spark 50
   -- 5G" (different chipset, different color lineup) is also sold in PH;
   -- this is the base model per the name alone, same convention used for
-  -- every other ambiguous name in this catalog.
-  ('Tecno', 'Tecno Spark 50', ARRAY['Halo Blue','Titanium Grey','Ink Black','Aurora Purple','Bloom Pink']),
+  -- every other ambiguous name in this catalog. "Dynamic Orange" added
+  -- per the shop's own confirmation (an actual unit on hand), not from
+  -- the earlier web research.
+  ('Tecno', 'Tecno Spark 50', ARRAY['Halo Blue','Titanium Grey','Ink Black','Aurora Purple','Bloom Pink','Dynamic Orange']),
 
   -- POCO (Xiaomi's sub-brand, same market segment as Redmi) and OPPO
   -- (BBK sibling to Vivo/Realme, already stocked) -- researched current
