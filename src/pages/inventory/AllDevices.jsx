@@ -13,12 +13,14 @@ import PrintLabelsModal from "../../components/inventory/PrintLabelsModal";
 import { getDeviceKind } from "../../utils/deviceKind";
 import { useServiceData } from "../../hooks/useServiceData";
 import { getAllDevices, getLowStockItems, deleteDevice } from "../../services/inventoryService";
+import { getProductCatalog } from "../../services/referenceService";
 import { getPendingShellsWithProgress, getAllShellsWithProgress } from "../../services/bulkOrderShellsService";
 import { useToast } from "../../hooks/useToast";
 
 function AllDevices() {
   const showToast = useToast();
   const lowStockItems = useServiceData(getLowStockItems, []);
+  const productCatalog = useServiceData(getProductCatalog, {});
 
   const [allDevices, setAllDevices] = useState([]);
   const loadDevices = useCallback(() => {
@@ -138,9 +140,23 @@ function AllDevices() {
     setAppliedFilters(cleared);
   };
 
+  // Sourced from the product_models catalog (same list Add Device's own
+  // Model dropdown offers), not from allDevices' raw saved device names —
+  // that used to surface every one-off value ever typed into Add Device's
+  // free-text "Other (specify model)" escape hatch as if it were a real,
+  // selectable model, and never scoped to the selected Category either (an
+  // iPhone would show up while filtering Tecno). Scoped to filters.category
+  // (the live dropdown selection, not appliedFilters) so choosing a
+  // category narrows Model immediately, before Search is clicked — matched
+  // against dbValue since devices.category (and so filters.category) uses
+  // the four original Apple categories' historical plural spelling
+  // ('iPhones'), which doesn't match the catalog's own singular keys.
   const kinds = useMemo(() => {
-    return [...new Set(allDevices.map((d) => getDeviceKind(d.device)))].sort();
-  }, [allDevices]);
+    const entries = Object.values(productCatalog);
+    const categoryEntry = filters.category === "All" ? null : entries.find((e) => e.dbValue === filters.category);
+    const models = filters.category === "All" ? entries.flatMap((e) => e.models) : categoryEntry?.models || [];
+    return [...new Set(models.map(getDeviceKind))].sort();
+  }, [productCatalog, filters.category]);
 
   const filtered = useMemo(() => {
     return allDevices.filter((d) => {

@@ -51,7 +51,7 @@ function FilterBar({ filters, setFilters, onApply, onClear, kinds = [] }) {
           </label>
           <select
             value={filters.category}
-            onChange={(e) => update("category", e.target.value)}
+            onChange={(e) => setFilters({ ...filters, category: e.target.value, kind: "All" })}
             className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="All">All Categories</option>
