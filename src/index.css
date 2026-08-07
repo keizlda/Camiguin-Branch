@@ -32,37 +32,50 @@
   }
 }
 
-/* Printed device labels (Add Device / All Devices "Print Label") — sized
-   for a real pre-cut A4 adhesive label sheet, fed through a normal
-   printer, not a thermal one.
-   The physical sticker is landscape — 29mm wide x 21mm tall, confirmed
-   against the real sheet, not the 21x29 portrait first assumed from the
-   stated "21x29mm" size alone. That's a better fit anyway: a Code128
-   barcode's natural shape is already wide/short, so the 29mm axis (its
-   width) lines up directly with the barcode's own long axis with no
-   rotation needed — simulated decode testing (jsbarcode's raw bar
-   pattern rendered into a synthetic BitMatrix at 300dpi, decoded with
-   @zxing/library the same way this project verifies every barcode
-   layout before shipping) showed a barcode needs 26mm+ of width to
-   decode reliably, comfortably inside 29mm. A first version rotated the
-   barcode 90° to force it onto a 21mm-wide portrait cell's long axis,
-   but a real print showed the rotation wasn't taking effect anyway, so
-   simplifying to match the sticker's actual orientation avoids relying
-   on CSS transform being honored by the print pipeline at all.
-   Column/row counts use auto-fill rather than a hardcoded number per
-   page, since the exact usable print area (and any gaps between labels
-   on the real sheet) depends on the specific product — this fills as
-   many as the page allows and wraps to further pages via
-   break-inside: avoid, rather than guessing a fixed per-page count that
-   might not match the physical sheet. Adjust page margins in the
-   browser's print dialog to align with the real sheet if needed. */
+/* Printed device labels (Add Device / All Devices "Print Label") — exact
+   spec measured directly off the real A4 adhesive label sheet (ruler
+   against the physical sheet, not guessed): 29mm x 21mm landscape
+   labels — a Code128 barcode's natural shape is already wide/short, so
+   its long axis lines up directly with the label's 29mm width, well
+   above the 26mm+ a barcode needs to stay reliably scannable (verified
+   the same way every barcode layout in this app is, before shipping:
+   jsbarcode's raw bar pattern rendered into a synthetic BitMatrix at
+   300dpi, decoded with @zxing/library) — with a 4mm gap between labels
+   both directions, and page margins of 8mm left/right, 13mm top, 12mm
+   bottom.
+   These numbers cross-check exactly against A4's fixed 210x297mm size:
+   usable width (210 - 8 - 8 = 194mm) fits 6 columns with zero slack
+   (6*29 + 5*4 = 194mm exactly), and usable height (297 - 13 - 12 =
+   272mm) fits 11 rows with 1mm to spare (11*21 + 10*4 = 271mm) — 66
+   labels per sheet, confirming these are the sheet's real manufactured
+   numbers rather than an approximation.
+   An earlier version left the 8/13/12mm margins to the browser's
+   default (or to @page's own margin property) and printed the grid
+   edge-to-edge with no gap — both wrong once measured against the real
+   sheet: real prints drifted further out of alignment with each label,
+   worse row over row, since the assumed zero gap didn't match the
+   physical 4mm one. Now .label-sheet's own padding carries the page
+   margins directly (@page's margin is set to 0 here, not left to
+   chance) so the spacing is guaranteed by ordinary content sizing
+   instead of page-level metadata a driver could ignore — same reasoning
+   as the receipt's fixed-width printable area below. For this to work,
+   the browser's print dialog needs "Margins: Default" selected (not
+   "None" or a custom value), otherwise the dialog's own margin stacks
+   on top of this padding instead of deferring to it. */
 @media print {
+  @page labelsheet {
+    size: A4 portrait;
+    margin: 0;
+  }
+
   .label-sheet {
+    page: labelsheet;
+    padding: 13mm 8mm 12mm 8mm;
     display: grid;
-    grid-template-columns: repeat(auto-fill, 29mm);
+    grid-template-columns: repeat(6, 29mm);
     grid-auto-rows: 21mm;
-    justify-content: start;
-    gap: 0;
+    column-gap: 4mm;
+    row-gap: 4mm;
   }
 
   .label-cell {
@@ -76,6 +89,11 @@
     justify-content: center;
     overflow: hidden;
     break-inside: avoid;
+  }
+
+  /* 6 columns x 11 rows = 66 per sheet, computed above. */
+  .label-cell:nth-child(66n) {
+    break-after: page;
   }
 }
 

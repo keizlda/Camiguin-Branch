@@ -32,7 +32,8 @@ function PrintLabelsModal({ devices, onClose }) {
 
         <div className="px-5 py-4 max-h-[50vh] overflow-y-auto">
           <p className="text-xs text-gray-400 mb-3">
-            Prints on a 29×21mm A4 adhesive label sheet (normal printer, not the thermal one).
+            Prints on a 29×21mm A4 adhesive label sheet (normal printer, not the thermal one) — 6 columns × 11
+            rows, 66 labels per sheet, with a new page started automatically past that.
           </p>
           <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
             {devices.map((d) => (
