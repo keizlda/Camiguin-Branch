@@ -2,20 +2,11 @@ import { X, Printer } from "lucide-react";
 import { formatDate, formatTime } from "../../utils/datetime";
 import Barcode from "../common/Barcode";
 
-// Placeholder business info — user confirmed (2026-08-06) to ship these as
-// placeholders for now rather than blocking on real values. Swap these for
-// the real address/phone/return policy whenever they're available; nothing
-// else about the receipt depends on them.
-const STORE_ADDRESS = ["Claro M. Recto Ave., Lapasan", "Cagayan de Oro City, 9000"];
-const STORE_PHONE = "0912 345 6789";
+const STORE_ADDRESS = ["Balintawak, Mambajao,", "Camiguin 911"];
+const STORE_PHONE = "0916 245 6667";
 const RETURN_POLICY = "No returns after 7 days.";
 
 const peso = (n) => "₱" + (Number(n) || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-const paymentStatusPillClass = {
-  Pending: "bg-amber-100 text-amber-800",
-  Paid: "bg-green-100 text-green-800",
-};
 
 // A real printed test revealed the thermal driver wasn't honoring the
 // named @page width — content rendered against a much wider assumed
@@ -74,6 +65,10 @@ function getSaleReference(soldAt, saleId) {
 function PrintReceiptModal({ receipt, onClose }) {
   const subtotal = receipt.items.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
   const saleReference = getSaleReference(receipt.soldAt, receipt.saleId);
+  const hasReferenceSection =
+    (receipt.referenceNumber && receipt.referenceNumber !== "N/A") ||
+    receipt.downPayment != null ||
+    receipt.balance != null;
   const handlePrint = () => window.print();
 
   return (
@@ -108,7 +103,6 @@ function PrintReceiptModal({ receipt, onClose }) {
               MG
             </div>
             <p className="text-sm font-bold tracking-wide">MARK GADGETS & ACCESSORIES SHOP</p>
-            <p className="text-[10px] text-gray-500 tracking-wide">POS &amp; INVENTORY SYSTEM</p>
             <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">
               {STORE_ADDRESS.map((line) => (
                 <span key={line}>
@@ -126,7 +120,6 @@ function PrintReceiptModal({ receipt, onClose }) {
             <Row label="Date:">
               {formatDate(receipt.soldAt)} {formatTime(receipt.soldAt)}
             </Row>
-            {receipt.salesperson && <Row label="Salesperson:">{receipt.salesperson}</Row>}
             {receipt.customerName && <Row label="Customer:">{receipt.customerName}</Row>}
             {receipt.customerPhone && <Row label="Contact:">{receipt.customerPhone}</Row>}
           </div>
@@ -162,29 +155,18 @@ function PrintReceiptModal({ receipt, onClose }) {
             </div>
           </div>
 
-          <div className="border-t border-dashed border-gray-400 my-2.5" />
-
-          <div className="space-y-0.5">
-            {receipt.orderType && (
-              <Row label="Order Type:">{receipt.orderType === "Bulk" ? "Bulk Order" : "Regular"}</Row>
-            )}
-            <Row label="Payment Method:">{receipt.paymentMethod}</Row>
-            <div className="flex flex-wrap justify-between gap-x-2 items-center">
-              <span className="text-gray-500">Payment Status:</span>
-              <span
-                className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded tracking-wide ${
-                  paymentStatusPillClass[receipt.paymentStatus] || "bg-gray-100 text-gray-700"
-                }`}
-              >
-                {receipt.paymentStatus?.toUpperCase()}
-              </span>
-            </div>
-            {receipt.referenceNumber && receipt.referenceNumber !== "N/A" && (
-              <Row label="Reference #:">{receipt.referenceNumber}</Row>
-            )}
-            {receipt.downPayment != null && <Row label="Down Payment:">{peso(receipt.downPayment)}</Row>}
-            {receipt.balance != null && <Row label="Balance:">{peso(receipt.balance)}</Row>}
-          </div>
+          {hasReferenceSection && (
+            <>
+              <div className="border-t border-dashed border-gray-400 my-2.5" />
+              <div className="space-y-0.5">
+                {receipt.referenceNumber && receipt.referenceNumber !== "N/A" && (
+                  <Row label="Reference #:">{receipt.referenceNumber}</Row>
+                )}
+                {receipt.downPayment != null && <Row label="Down Payment:">{peso(receipt.downPayment)}</Row>}
+                {receipt.balance != null && <Row label="Balance:">{peso(receipt.balance)}</Row>}
+              </div>
+            </>
+          )}
 
           {saleReference && (
             <>
@@ -196,13 +178,13 @@ function PrintReceiptModal({ receipt, onClose }) {
             </>
           )}
 
-          <p className="text-center font-bold mt-2.5">Thank you for your business!</p>
+          <p className="text-center font-bold mt-2.5">Thank you and God Bless</p>
           <p className="text-center text-[10px] text-gray-500 mt-3 leading-relaxed">
             {RETURN_POLICY}
             <br />
             Please keep this receipt for warranty and return purposes.
             <br />
-            &copy; {new Date().getFullYear()} MARK Gadgets & Accessories Shop. All rights reserved.
+            &copy; 2019 MARK Gadgets & Accessories Shop. All rights reserved.
           </p>
 
           {receipt.notes && <p className="text-[10px] text-gray-500 mt-2 pt-2 border-t border-dashed border-gray-400">{receipt.notes}</p>}
