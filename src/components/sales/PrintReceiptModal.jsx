@@ -25,13 +25,24 @@ const peso = (n) => "P" + (Number(n) || 0).toLocaleString("en-PH", { minimumFrac
 // so a plain-text extractor can't insert its own extra space between
 // them the way it did with the old two-span flex row.
 //
-// 30 characters is a conservative width for the 46mm print area at the
-// print-only 8.5px font these rows use below — provisional, like every
-// other physical measurement in this file, pending a real test print.
+// Staff were manually setting the print dialog's Scale to 110% every
+// sale to get large-enough text — not something everyone will remember
+// every time, and it was pushing the receipt past its fixed page height
+// into a wasteful second page. RECEIPT_FONT_PX bakes that size in
+// directly instead (see the container's own font-size below, which
+// should match this), so 20 characters is what actually fits the 46mm
+// print area at that size (46mm ≈ 174px at the CSS-standard 96dpi
+// reference pixel; Courier's advance width is ~0.6em/character) — down
+// from a wider budget at the smaller pre-scale font. Tighter, so more
+// rows fall back to wrapping onto their own line below (next), which is
+// an accepted tradeoff for bigger, more legible text on a narrow roll —
+// both figures are provisional pending a real test print, like every
+// other physical measurement in this file.
 // white-space: pre-wrap preserves the padding (unlike normal, which
 // collapses repeated spaces) while still wrapping instead of overflowing
 // horizontally if a line ends up longer than expected.
-const RECEIPT_CHARS = 30;
+const RECEIPT_FONT_PX = 14;
+const RECEIPT_CHARS = 20;
 
 function padLine(left, right) {
   const gap = RECEIPT_CHARS - left.length - right.length;
@@ -45,7 +56,7 @@ function padLine(left, right) {
 
 function Row({ label, value }) {
   return (
-    <div className="text-xs print:text-[8.5px]" style={{ whiteSpace: "pre-wrap" }}>
+    <div style={{ whiteSpace: "pre-wrap" }}>
       {padLine(label, value)}
     </div>
   );
@@ -126,15 +137,15 @@ function PrintReceiptModal({ receipt, onClose }) {
             centered width, so whatever margin exists is on the right,
             away from where content has been getting cut. */}
         <div
-          className="mx-auto w-[320px] max-w-full p-5 print:w-[46mm] print:ml-0 print:mr-auto print:p-0 text-gray-900 text-xs max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
-          style={{ fontFamily: "'Courier New', Courier, monospace" }}
+          className="mx-auto w-[320px] max-w-full p-5 print:w-[46mm] print:ml-0 print:mr-auto print:p-0 text-gray-900 max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
+          style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: `${RECEIPT_FONT_PX}px` }}
         >
           <div className="text-center">
             <div className="w-11 h-11 rounded-full bg-gray-900 text-white flex items-center justify-center font-bold text-sm mx-auto mb-1.5">
               MG
             </div>
             <p className="text-sm font-bold tracking-wide">MARK GADGETS & ACCESSORIES SHOP</p>
-            <p className="text-[10px] text-gray-500 mt-1 leading-relaxed">
+            <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
               {STORE_ADDRESS.map((line) => (
                 <span key={line}>
                   {line}
@@ -163,9 +174,15 @@ function PrintReceiptModal({ receipt, onClose }) {
                   <p className="text-gray-500">{[item.storage, item.color].filter(Boolean).join(" · ")}</p>
                 )}
                 {item.batchCode && <p className="text-gray-500">Batch: {item.batchCode}</p>}
-                <div className="mt-0.5 text-xs print:text-[8.5px]" style={{ whiteSpace: "pre-wrap" }}>
-                  {padLine(`1 x ${peso(item.price)}`, peso(item.price))}
-                </div>
+                {/* Every unit here is a serialized device — qty is always
+                    exactly 1, so a separate "1 x price" alongside the same
+                    price again as a line total was always showing the same
+                    number twice. One value, right-aligned when CSS is
+                    honored (text-right), still perfectly readable flush
+                    left on a print path that strips CSS instead — unlike a
+                    label/value pair, a single number is never ambiguous
+                    either way. */}
+                <p className="mt-0.5 text-right">{peso(item.price)}</p>
               </div>
             ))}
           </div>
@@ -173,13 +190,8 @@ function PrintReceiptModal({ receipt, onClose }) {
           <div className="border-t border-dashed border-gray-400 my-2.5" />
 
           <div className="space-y-0.5">
-            <div className="text-xs print:text-[8.5px]" style={{ whiteSpace: "pre-wrap" }}>
-              {padLine("Subtotal", peso(subtotal))}
-            </div>
-            <div
-              className="font-bold text-sm print:text-[8.5px] border-t border-gray-900 pt-1.5 mt-1"
-              style={{ whiteSpace: "pre-wrap" }}
-            >
+            <div style={{ whiteSpace: "pre-wrap" }}>{padLine("Subtotal", peso(subtotal))}</div>
+            <div className="font-bold text-base border-t border-gray-900 pt-1.5 mt-1" style={{ whiteSpace: "pre-wrap" }}>
               {padLine(isInstallment ? "DEVICE TOTAL" : "TOTAL", peso(subtotal))}
             </div>
           </div>
@@ -202,13 +214,13 @@ function PrintReceiptModal({ receipt, onClose }) {
               <div className="border-t border-dashed border-gray-400 my-2.5" />
               <div className="text-center">
                 <Barcode value={saleReference.barcodeValue} height={30} className="mx-auto max-w-full h-auto" />
-                <p className="text-[9px] tracking-widest mt-0.5">{saleReference.label}</p>
+                <p className="text-[10px] tracking-widest mt-0.5">{saleReference.label}</p>
               </div>
             </>
           )}
 
           <p className="text-center font-bold mt-2.5">Thank you and God Bless</p>
-          <p className="text-center text-[10px] text-gray-500 mt-3 leading-relaxed">
+          <p className="text-center text-[11px] text-gray-500 mt-3 leading-relaxed">
             {RETURN_POLICY}
             <br />
             Please keep this receipt for warranty and return purposes.
@@ -216,7 +228,7 @@ function PrintReceiptModal({ receipt, onClose }) {
             &copy; 2019 MARK Gadgets & Accessories Shop. All rights reserved.
           </p>
 
-          {receipt.notes && <p className="text-[10px] text-gray-500 mt-2 pt-2 border-t border-dashed border-gray-400">{receipt.notes}</p>}
+          {receipt.notes && <p className="text-[11px] text-gray-500 mt-2 pt-2 border-t border-dashed border-gray-400">{receipt.notes}</p>}
         </div>
 
         <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 print:hidden">

@@ -135,10 +135,20 @@
    fixed size, generous enough to safely fit a normal few-item receipt
    with real margin to spare rather than being cut close again, with
    margin doing double duty as requested breathing room at the top and
-   bottom (not just the previous minimal spacing). */
+   bottom (not just the previous minimal spacing).
+   Height bumped 220mm -> 260mm alongside baking a bigger font directly
+   into PrintReceiptModal.jsx (see the font-size comment there) -- staff
+   were manually setting the print dialog's Scale to 110% every single
+   sale to get readable text, which nobody's going to remember to do
+   consistently, and which was itself pushing the receipt past 220mm and
+   forcing a wasteful second page. Baking the bigger size in directly
+   removes the manual step; the taller page gives that bigger text (and
+   the wrapped-to-two-lines rows it causes more often, see
+   PrintReceiptModal.jsx) room without spilling over again. Still a fixed
+   ceiling, not true auto-height -- same tradeoff as before. */
 @media print {
   @page receipt {
-    size: 58mm 220mm;
+    size: 58mm 260mm;
     margin: 12.7mm 0;
   }
 
