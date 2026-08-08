@@ -9,12 +9,17 @@ import DeviceDetailsModal from "../../components/inventory/DeviceDetailsModal";
 import EditDeviceModal from "../../components/inventory/EditDeviceModal";
 import LogShipmentArrivalModal from "../../components/inventory/LogShipmentArrivalModal";
 import PendingShipmentsCard from "../../components/inventory/PendingShipmentsCard";
+import EditShipmentShellModal from "../../components/inventory/EditShipmentShellModal";
 import PrintLabelsModal from "../../components/inventory/PrintLabelsModal";
 import { getDeviceKind } from "../../utils/deviceKind";
 import { useServiceData } from "../../hooks/useServiceData";
 import { getAllDevices, getLowStockItems, deleteDevice } from "../../services/inventoryService";
 import { getProductCatalog } from "../../services/referenceService";
-import { getPendingShellsWithProgress, getAllShellsWithProgress } from "../../services/bulkOrderShellsService";
+import {
+  getPendingShellsWithProgress,
+  getAllShellsWithProgress,
+  deleteBulkOrderShell,
+} from "../../services/bulkOrderShellsService";
 import { useToast } from "../../hooks/useToast";
 
 function AllDevices() {
@@ -46,6 +51,7 @@ function AllDevices() {
   const [viewDevice, setViewDevice] = useState(null);
   const [editDevice, setEditDevice] = useState(null);
   const [showLogShipment, setShowLogShipment] = useState(false);
+  const [editingShell, setEditingShell] = useState(null);
 
   const [pendingShells, setPendingShells] = useState([]);
   const loadPendingShells = useCallback(() => {
@@ -122,6 +128,30 @@ function AllDevices() {
     loadDevices();
     loadPendingShells();
     loadAllShells();
+  };
+
+  const handleShellEditSaved = () => {
+    setEditingShell(null);
+    loadPendingShells();
+    loadAllShells();
+    showToast("Shipment updated.");
+  };
+
+  const handleDeleteShell = async (shell) => {
+    const warning =
+      shell.linkedCount > 0
+        ? `Delete this shipment placeholder for ${shell.deviceName}? ${shell.linkedCount} unit(s) already logged against it stay in inventory but lose their link to this shipment record. This cannot be undone.`
+        : `Delete this shipment placeholder for ${shell.deviceName}? This cannot be undone.`;
+    if (!window.confirm(warning)) return;
+    try {
+      await deleteBulkOrderShell(shell.id);
+      loadPendingShells();
+      loadAllShells();
+      loadDevices();
+      showToast("Shipment deleted.");
+    } catch (err) {
+      showToast(err.message || "Failed to delete shipment. Please try again.", "error");
+    }
   };
 
   const handleDelete = async (device) => {
@@ -249,7 +279,7 @@ function AllDevices() {
 
       <InventoryStats {...stats} />
 
-      <PendingShipmentsCard shells={pendingShells} />
+      <PendingShipmentsCard shells={pendingShells} onEdit={setEditingShell} onDelete={handleDeleteShell} />
 
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="flex items-center justify-between mb-4">
@@ -313,6 +343,14 @@ function AllDevices() {
 
       {showLogShipment && (
         <LogShipmentArrivalModal onClose={() => setShowLogShipment(false)} onCreated={handleShipmentLogged} />
+      )}
+
+      {editingShell && (
+        <EditShipmentShellModal
+          shell={editingShell}
+          onClose={() => setEditingShell(null)}
+          onSaved={handleShellEditSaved}
+        />
       )}
     </div>
 

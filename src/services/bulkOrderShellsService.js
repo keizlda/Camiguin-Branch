@@ -54,6 +54,7 @@ function mapShellProgress(s) {
     storage: s.storage,
     color: s.color,
     quantityExpected: s.quantity_expected,
+    unitCost: s.unit_cost,
     dateArrived: s.date_arrived,
     linkedCount: s.linked_count,
     status: s.status,
@@ -100,7 +101,6 @@ export async function getSupplierPayables() {
 
   return data.map((s) => ({
     ...mapShellProgress(s),
-    unitCost: s.unit_cost,
     amountPayable: s.amount_payable,
     supplierPaymentStatus: s.supplier_payment_status,
     supplierPaidAt: s.supplier_paid_at,
@@ -114,5 +114,55 @@ export async function markShellPaid(shellId) {
 
 export async function markShellUnpaid(shellId) {
   const { error } = await supabase.rpc("mark_bulk_order_shell_unpaid", { p_id: shellId });
+  if (error) throw error;
+}
+
+// Corrects a shipment placeholder's own fields — e.g. the quantity was
+// mistyped, or the wrong category got picked in Log Shipment Arrival so it
+// went through this placeholder path instead of the direct bulk-accessory
+// add. A single-table update, not an RPC — nothing else needs to stay in
+// sync with it (see updateSalePaymentStatus in salesService.js for the same
+// plain-update pattern).
+export async function editBulkOrderShell({
+  id,
+  supplierName,
+  deviceName,
+  storage,
+  color,
+  quantityExpected,
+  unitCost,
+  dateArrived,
+}) {
+  let supplierId = null;
+  if (supplierName) {
+    const { data: supplier, error: supplierError } = await supabase
+      .from("suppliers")
+      .select("id")
+      .eq("name", supplierName)
+      .single();
+    if (supplierError) throw supplierError;
+    supplierId = supplier.id;
+  }
+
+  const { error } = await supabase
+    .from("bulk_order_shells")
+    .update({
+      supplier_id: supplierId,
+      device_name: deviceName,
+      storage: storage || null,
+      color: color || null,
+      quantity_expected: quantityExpected,
+      unit_cost: unitCost ?? null,
+      date_arrived: dateArrived,
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+// Removes a shipment placeholder logged in error — any devices already
+// linked to it stay in inventory untouched, just unlinked from this
+// shipment record (see delete_bulk_order_shell in schema.sql).
+export async function deleteBulkOrderShell(shellId) {
+  const { error } = await supabase.rpc("delete_bulk_order_shell", { p_id: shellId });
   if (error) throw error;
 }

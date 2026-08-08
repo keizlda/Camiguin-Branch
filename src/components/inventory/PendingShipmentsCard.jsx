@@ -1,9 +1,12 @@
-import { PackagePlus } from "lucide-react";
+import { PackagePlus, Pencil, Trash2 } from "lucide-react";
 import { formatDate } from "../../utils/datetime";
 
 // Lets staff see what's still being entered from an overnight shipment
-// placeholder (see bulk_order_shells / Log Shipment Arrival).
-function PendingShipmentsCard({ shells }) {
+// placeholder (see bulk_order_shells / Log Shipment Arrival), and correct
+// or scrap one logged in error (wrong quantity, or the wrong category
+// picked so an accessory shipment landed here instead of going straight
+// into inventory) without needing direct database access.
+function PendingShipmentsCard({ shells, onEdit, onDelete }) {
   if (shells.length === 0) return null;
 
   return (
@@ -26,9 +29,27 @@ function PendingShipmentsCard({ shells }) {
                   {s.deviceName}
                   {variant && <span className="text-gray-400 font-normal"> · {variant}</span>}
                 </p>
-                <p className="text-xs text-gray-500 whitespace-nowrap">
-                  {s.linkedCount}/{s.quantityExpected} logged
-                </p>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <p className="text-xs text-gray-500 whitespace-nowrap">
+                    {s.linkedCount}/{s.quantityExpected} logged
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onEdit(s)}
+                    title="Edit shipment"
+                    className="text-gray-400 hover:text-blue-600"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(s)}
+                    title="Delete shipment"
+                    className="text-gray-400 hover:text-red-600"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
               <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />

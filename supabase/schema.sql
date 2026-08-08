@@ -776,6 +776,25 @@ begin
 end;
 $$;
 
+-- Deletes a shipment placeholder logged in error (e.g. wrong category
+-- picked in Log Shipment Arrival, so it went through the one-by-one
+-- placeholder path instead of the direct bulk-accessory add). Any devices
+-- already linked to it (devices.bulk_order_shell_id — the only FK pointing
+-- at this table) are unlinked rather than deleted — those are real units
+-- already in inventory; removing the shipment record shouldn't remove them,
+-- only the "which shipment this came from" traceability.
+create function public.delete_bulk_order_shell(p_id uuid)
+returns void
+language plpgsql
+security invoker
+set search_path = public
+as $$
+begin
+  update public.devices set bulk_order_shell_id = null where bulk_order_shell_id = p_id;
+  delete from public.bulk_order_shells where id = p_id;
+end;
+$$;
+
 -- Folds in the "report as Supplier Defective" record creation that used to
 -- be a separate follow-up call from Add Device. p_bulk_order_shell_id/
 -- p_date_arrived link this unit back to an overnight shipment placeholder
