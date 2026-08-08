@@ -79,7 +79,6 @@ function NewSale() {
   const [payment, setPayment] = useState("Cash");
   const [referenceNumber, setReferenceNumber] = useState("N/A");
   const [downPayment, setDownPayment] = useState("");
-  const [balance, setBalance] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -221,13 +220,19 @@ function NewSale() {
       setPayment("Cash");
       setReferenceNumber("N/A");
       setDownPayment("");
-      setBalance("");
     }
   }, [isBulk, payment, installmentEligible]);
 
   const totalCapital = cart.reduce((sum, c) => sum + (Number(c.purchasePrice) || 0), 0);
   const total = cart.reduce((sum, c) => sum + (Number(c.actualPrice) || 0), 0);
   const profit = total - totalCapital;
+
+  // Derived, not typed — Balance always equals Total minus Down Payment
+  // (floored at 0), so it can never drift from a number staff could
+  // manually mistype. See process_sale in schema.sql, which computes the
+  // same formula server-side from the same two inputs when the sale is
+  // actually saved.
+  const balance = FINANCING_METHODS.includes(payment) && downPayment !== "" ? Math.max(0, total - (Number(downPayment) || 0)) : null;
 
   // Positive: the store's unit(s) are worth more, customer tops up cash.
   // Negative: the trade-in is worth more, so the store hands back cash.
@@ -242,7 +247,6 @@ function NewSale() {
 
     if (method === "Swap") {
       setDownPayment("");
-      setBalance("");
       // Switching back to Swap after picking something else in between
       // needs to restore the reference to the trade-in already logged —
       // otherwise it's stuck showing whatever the other method left there.
@@ -259,14 +263,13 @@ function NewSale() {
       return;
     }
 
-    // Financing methods ask for Down Payment/Balance instead of a Reference
-    // Number — clear both when switching to any other method so stale
-    // values can't leak through. Reference Number itself only resets for
-    // Cash (which never needs one) or if it's still holding a trade-in's
-    // batch code from Swap — every other method keeps whatever was already
-    // typed, same as before Swap/financing existed.
+    // Financing methods ask for a Down Payment (Balance derives from it)
+    // instead of a Reference Number — clear it when switching to any other
+    // method so a stale value can't leak through. Reference Number itself
+    // only resets for Cash (which never needs one) or if it's still holding
+    // a trade-in's batch code from Swap — every other method keeps whatever
+    // was already typed, same as before Swap/financing existed.
     setDownPayment("");
-    setBalance("");
     if (method === "Cash" || referenceNumber.startsWith("Trade-in:")) {
       setReferenceNumber("N/A");
     }
@@ -283,12 +286,19 @@ function NewSale() {
       setError("Log the customer's trade-in phone before processing a swap sale.");
       return;
     }
-    // Without this, a financed sale could be submitted with both fields
-    // blank — it'd still succeed (they're nullable columns), but the
-    // printed receipt would then look identical to a fully-paid cash sale,
-    // with nothing on it indicating money is still owed.
-    if (FINANCING_METHODS.includes(payment) && (downPayment === "" || balance === "" || Number(downPayment) < 0 || Number(balance) < 0)) {
-      setError("Enter both Down Payment and Balance before processing a financed sale.");
+    // Without this, a financed sale could be submitted with Down Payment
+    // blank — it'd still succeed (down_payment/balance are nullable
+    // columns), but the printed receipt would then look identical to a
+    // fully-paid cash sale, with nothing on it indicating money is still
+    // owed. Balance itself needs no separate check — it's derived from
+    // Down Payment and the cart total, so it's always a valid number once
+    // Down Payment is.
+    if (FINANCING_METHODS.includes(payment) && (downPayment === "" || Number(downPayment) < 0)) {
+      setError("Enter a Down Payment before processing a financed sale.");
+      return;
+    }
+    if (FINANCING_METHODS.includes(payment) && Number(downPayment) > total) {
+      setError("Down Payment cannot exceed the total price.");
       return;
     }
     setSubmitting(true);
@@ -300,7 +310,6 @@ function NewSale() {
         notes,
         cartItems: cart.map((c) => ({ ...c, price: Number(c.actualPrice) || 0 })),
         downPayment: FINANCING_METHODS.includes(payment) && downPayment !== "" ? Number(downPayment) : null,
-        balance: FINANCING_METHODS.includes(payment) && balance !== "" ? Number(balance) : null,
         forceBulk,
       });
 
@@ -321,7 +330,7 @@ function NewSale() {
         referenceNumber,
         notes: notes.trim() || null,
         downPayment: FINANCING_METHODS.includes(payment) && downPayment !== "" ? Number(downPayment) : null,
-        balance: FINANCING_METHODS.includes(payment) && balance !== "" ? Number(balance) : null,
+        balance,
         items: cart.map((c) => ({
           device: c.product,
           storage: c.storage,
@@ -333,7 +342,6 @@ function NewSale() {
       clearCart();
       setReferenceNumber("N/A");
       setDownPayment("");
-      setBalance("");
       setNotes("");
       setCustomerSearch("");
       setSwapTradeIn(null);
@@ -783,13 +791,14 @@ function NewSale() {
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₱</span>
                 <input
-                  type="number"
-                  value={balance}
-                  onChange={(e) => setBalance(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full border border-gray-200 rounded-lg text-sm pl-7 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  type="text"
+                  readOnly
+                  tabIndex={-1}
+                  value={(balance ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  className="w-full border border-gray-200 rounded-lg text-sm pl-7 pr-3 py-2 bg-gray-50 text-gray-500 cursor-not-allowed"
                 />
               </div>
+              <p className="text-xs text-gray-400 mt-1">Total minus Down Payment — fills in automatically.</p>
             </div>
           </div>
         ) : (

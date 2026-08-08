@@ -25,6 +25,10 @@ import ScanBarcodeModal from "../../components/common/ScanBarcodeModal";
 import PrintReceiptModal from "../../components/sales/PrintReceiptModal";
 import { useToast } from "../../hooks/useToast";
 
+// Mirrors NewSale.jsx's own NON_INSTALLMENT_CATEGORIES — installment
+// financing is for actual devices, not accessories/repair parts.
+const NON_INSTALLMENT_CATEGORIES = ["Accessories", "Repair Parts"];
+
 // An undone sale (a Sold unit edited back to Available, or deleted
 // straight from this page) is removed outright, not "Refunded" — so only
 // these two states are ever seen here.
@@ -108,6 +112,25 @@ function SalesHistory() {
         price: u.total,
       })),
     });
+  };
+
+  // Installment financing is for actual devices — mirrors NewSale.jsx's own
+  // NON_INSTALLMENT_CATEGORIES check, so Edit Sale can't offer Skyro/PayJoy
+  // on an order that includes an accessory or repair part.
+  const openEditModal = (row) => {
+    setOpenMenu(null);
+    const siblingUnits = salesHistory.filter((s) => s.saleId === row.saleId);
+    // Down Payment/Balance live once per sale, not per unit — Price Sold in
+    // the edit form only covers this one row, so the modal needs every
+    // sibling unit's own price to derive the sale-wide total a changed
+    // Balance preview should be based on (the RPC itself recomputes the
+    // real total server-side from every sale_item, this is just for an
+    // accurate on-screen preview before saving).
+    const otherUnitsTotal = siblingUnits
+      .filter((s) => s.saleItemId !== row.saleItemId)
+      .reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+    const installmentEligible = siblingUnits.every((s) => !NON_INSTALLMENT_CATEGORIES.includes(s.category));
+    setEditingRow({ ...row, otherUnitsTotal, installmentEligible });
   };
 
   const handleMarkAsPaid = async (row) => {
@@ -466,7 +489,7 @@ function SalesHistory() {
                           )}
                           {isAdmin && (
                             <button
-                              onClick={() => { setEditingRow(row); setOpenMenu(null); }}
+                              onClick={() => openEditModal(row)}
                               className="block w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-t border-gray-100"
                             >
                               Edit Sale

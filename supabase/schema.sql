@@ -397,6 +397,17 @@ create index on public.devices (bulk_order_shell_id);
 -- pay by check, which isn't confirmed the moment the sale is rung up.
 -- p_force_bulk lets staff opt a smaller sale into the same treatment (e.g.
 -- a single-unit wholesale sale) instead of relying on the count alone.
+--
+-- balance is derived here (total minus down payment, floored at 0) rather
+-- than taken from the client — a single source of truth for the formula
+-- means NewSale and edit_sale can't ever compute it differently or drift
+-- out of sync with each other.
+--
+-- Signature changed (dropped p_balance) from the version this replaced —
+-- create or replace doesn't swap in a changed parameter list, it adds a
+-- second overload, so the old signature is dropped first.
+drop function if exists public.process_sale(text, uuid, text, text, text, numeric, jsonb, numeric, numeric, boolean);
+
 create function public.process_sale(
   p_customer_name text,
   p_salesperson_id uuid,
@@ -406,7 +417,6 @@ create function public.process_sale(
   p_total_amount numeric,
   p_cart_items jsonb, -- [{"device_id": "...", "price": 123.45}, ...]
   p_down_payment numeric default null,
-  p_balance numeric default null,
   p_force_bulk boolean default false
 )
 returns uuid
@@ -432,7 +442,8 @@ begin
   )
   values (
     p_customer_name, p_salesperson_id, p_payment_method, p_reference_number, p_notes,
-    p_total_amount, 'Completed', v_order_type, v_payment_status, p_down_payment, p_balance
+    p_total_amount, 'Completed', v_order_type, v_payment_status, p_down_payment,
+    case when p_down_payment is not null then greatest(p_total_amount - p_down_payment, 0) else null end
   )
   returning id into v_sale_id;
 
@@ -1023,24 +1034,39 @@ end;
 $$;
 
 -- Lets an admin correct a sale after the fact from Sales History — customer
--- info, the price this specific unit sold for, notes, financing/reference
--- detail, and the sale/received dates. Payment method itself and which
--- device was sold stay locked (changing either is really a delete + a new
--- sale, not an edit).
+-- info, payment method, the price this specific unit sold for, notes,
+-- financing/reference detail, and the sale/received dates. Which device was
+-- sold stays locked (changing that is really a delete + a new sale, not an
+-- edit) — Swap also stays locked, since it's tied to a specific trade-in
+-- device logged elsewhere, not just a payment_method string (see the UI's
+-- own gating in EditSaleModal.jsx; this RPC itself doesn't re-check that,
+-- consistent with admin-only gating living in the UI everywhere else here).
 --
--- customer_name/phone/notes/reference_number/down_payment/balance/sold_at
--- all live once per sale (not per unit) — editing any of them from one row
--- of a Bulk order updates every sibling row in that same order, since
--- they all share the same sales record. price_at_sale and date_added are
--- per-device, so only the specific unit being edited is touched.
+-- customer_name/phone/notes/payment_method/reference_number/down_payment/
+-- balance/sold_at all live once per sale (not per unit) — editing any of
+-- them from one row of a Bulk order updates every sibling row in that same
+-- order, since they all share the same sales record. price_at_sale and
+-- date_added are per-device, so only the specific unit being edited is
+-- touched.
+--
+-- balance is derived here (recomputed total minus down payment, floored at
+-- 0), not taken from the client — same reasoning as process_sale, one
+-- formula in one place so the two entry points can't disagree.
+--
+-- Signature changed (added p_payment_method, dropped p_balance) from the
+-- version this replaced — create or replace doesn't swap in a changed
+-- parameter list, it adds a second overload, so the old signature is
+-- dropped first.
+drop function if exists public.edit_sale(uuid, text, text, text, text, numeric, numeric, numeric, timestamptz, timestamptz);
+
 create function public.edit_sale(
   p_sale_item_id uuid,
   p_customer_name text,
   p_customer_phone text,
   p_notes text,
+  p_payment_method text,
   p_reference_number text,
   p_down_payment numeric,
-  p_balance numeric,
   p_price_at_sale numeric,
   p_sold_at timestamptz,
   p_date_added timestamptz
@@ -1053,6 +1079,7 @@ as $$
 declare
   v_sale_id uuid;
   v_device_id uuid;
+  v_total_amount numeric;
 begin
   select sale_id, device_id into v_sale_id, v_device_id
   from public.sale_items where id = p_sale_item_id;
@@ -1061,17 +1088,19 @@ begin
   set price_at_sale = p_price_at_sale
   where id = p_sale_item_id;
 
+  select sum(price_at_sale * quantity) into v_total_amount
+  from public.sale_items where sale_id = v_sale_id;
+
   update public.sales
   set customer_name = p_customer_name,
       customer_phone = p_customer_phone,
       notes = p_notes,
+      payment_method = p_payment_method,
       reference_number = p_reference_number,
       down_payment = p_down_payment,
-      balance = p_balance,
+      balance = case when p_down_payment is not null then greatest(v_total_amount - p_down_payment, 0) else null end,
       sold_at = p_sold_at,
-      total_amount = (
-        select sum(price_at_sale * quantity) from public.sale_items where sale_id = v_sale_id
-      )
+      total_amount = v_total_amount
   where id = v_sale_id;
 
   update public.devices

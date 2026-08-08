@@ -107,18 +107,20 @@ export async function getSalesHistory() {
 }
 
 // Corrects a sale after the fact (Sales History's Edit action, admin-only).
-// Customer/notes/reference/financing/sold-at live on the shared sales row,
-// so editing them from any one unit of a Bulk order updates every sibling
-// row in that order too — price and date added are per-device, scoped to
-// just this one.
+// Customer/notes/payment method/reference/financing/sold-at live on the
+// shared sales row, so editing them from any one unit of a Bulk order
+// updates every sibling row in that order too — price and date added are
+// per-device, scoped to just this one. balance isn't sent — edit_sale
+// derives it server-side from the (possibly just-changed) total and down
+// payment, so this function can't compute it out of sync with the RPC.
 export async function editSale({
   saleItemId,
   customerName,
   customerPhone,
   notes,
+  paymentMethod,
   referenceNumber,
   downPayment,
-  balance,
   priceAtSale,
   soldAt,
   dateAdded,
@@ -128,9 +130,9 @@ export async function editSale({
     p_customer_name: customerName || null,
     p_customer_phone: customerPhone || null,
     p_notes: notes || null,
+    p_payment_method: paymentMethod,
     p_reference_number: referenceNumber || null,
     p_down_payment: downPayment ?? null,
-    p_balance: balance ?? null,
     p_price_at_sale: priceAtSale,
     p_sold_at: soldAt,
     p_date_added: dateAdded,
@@ -159,7 +161,8 @@ export async function updateSalePaymentStatus(saleId, paymentStatus) {
 // cartItems: [{ id (device uuid), price }]. Each cart line is one specific
 // serialized device, so quantity per line item is always 1. Runs as a single
 // atomic RPC (see process_sale in schema.sql) so a dropped connection can't
-// leave a sale recorded with its devices still "Available".
+// leave a sale recorded with its devices still "Available". balance isn't
+// sent — process_sale derives it server-side from total and down payment.
 export async function processSale({
   customerName,
   paymentMethod,
@@ -167,7 +170,6 @@ export async function processSale({
   notes,
   cartItems,
   downPayment,
-  balance,
   forceBulk,
 }) {
   const {
@@ -187,7 +189,6 @@ export async function processSale({
     p_total_amount: total,
     p_cart_items: cartItems.map((item) => ({ device_id: item.id, price: item.price })),
     p_down_payment: downPayment ?? null,
-    p_balance: balance ?? null,
     p_force_bulk: forceBulk ?? false,
   });
   if (error) throw error;
