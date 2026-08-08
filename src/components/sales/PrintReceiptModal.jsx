@@ -13,7 +13,7 @@ const RECEIPT_BODIES = {
 
 // receipt shape: { saleId, soldAt, customerName, customerPhone, salesperson,
 // paymentMethod, paymentStatus, orderType, referenceNumber, notes,
-// downPayment, balance, items: [{ device, storage, color, batchCode, price }] }
+// downPayment, balance, items: [{ device, storage, batchCode, price }] }
 //
 // The actual receipt markup lives in three separate components under
 // receiptBodies/ (Android/Mac/Windows), picked here by detected OS — not

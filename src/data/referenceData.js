@@ -1,15 +1,15 @@
 // Static reference constants — UI-only lookup lists that don't come from
 // Supabase. Business records live in the database; see src/services/.
 //
-// Categories/brands (and models/colors within them) used to live here too,
-// but the admin can now add/remove both at runtime — see the categories and
+// Categories/brands (and models within them) used to live here too, but the
+// admin can now add/remove both at runtime — see the categories and
 // product_models tables in the database, and getProductCatalog/
 // getDeviceCategories in referenceService.js.
 
 export const deviceStorages = ["64GB", "128GB", "256GB", "512GB", "1TB"];
 
 // Accessories/Repair Parts aren't serialized phone-like devices — no
-// Color/Storage, a different condition vocabulary, and a different
+// Storage field, a different condition vocabulary, and a different
 // supplier list all key off this same check. Works with either the
 // singular (Add Device's form) or plural/DB category spelling, since
 // these two names don't have a singular/plural distinction. Every other

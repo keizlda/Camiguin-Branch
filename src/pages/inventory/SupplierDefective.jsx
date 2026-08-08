@@ -213,7 +213,7 @@ function SupplierDefective() {
                   <td className="px-3 py-3 text-gray-600 whitespace-nowrap">{row.batchCode}</td>
                   <td className="px-3 py-3">
                     <p className="text-gray-800 font-medium whitespace-nowrap">{row.device}</p>
-                    <p className="text-xs text-gray-400 whitespace-nowrap">{row.storage} · {row.color}</p>
+                    <p className="text-xs text-gray-400 whitespace-nowrap">{row.storage}</p>
                   </td>
                   <td className="px-3 py-3 text-gray-600">{row.supplier}</td>
                   <td className="px-3 py-3 text-gray-500 whitespace-nowrap">

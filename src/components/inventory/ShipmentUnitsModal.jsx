@@ -41,7 +41,6 @@ function ShipmentUnitsModal({ group, onClose, onView, onPrintLabels }) {
                 <tr className="text-left text-gray-400 border-b border-gray-100">
                   <th className="pb-2 font-medium">Batch Code</th>
                   <th className="pb-2 font-medium">Storage</th>
-                  <th className="pb-2 font-medium">Color</th>
                   <th className="pb-2 font-medium">Status</th>
                   <th className="pb-2 font-medium">Date Added</th>
                 </tr>
@@ -55,7 +54,6 @@ function ShipmentUnitsModal({ group, onClose, onView, onPrintLabels }) {
                   >
                     <td className="py-2.5 text-gray-700">{u.batchCode}</td>
                     <td className="py-2.5 text-gray-600">{u.storage}</td>
-                    <td className="py-2.5 text-gray-600">{u.color}</td>
                     <td className="py-2.5">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusStyles[u.status]}`}>
                         {u.status}

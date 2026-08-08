@@ -75,8 +75,8 @@ function ReceiptBodyMac({ receipt }) {
         {receipt.items.map((item, i) => (
           <div key={i} className="mb-2">
             <p className="font-bold">{item.device}</p>
-            {(item.storage || item.color) && (
-              <p className="text-gray-500">{[item.storage, item.color].filter(Boolean).join(" · ")}</p>
+            {item.storage && (
+              <p className="text-gray-500">{item.storage}</p>
             )}
             {item.batchCode && <p className="text-gray-500">Batch: {item.batchCode}</p>}
             {/* Every unit here is a serialized device — qty is always

@@ -66,7 +66,7 @@ function PrintLabelsModal({ devices, onClose }) {
                     <span className="text-xs text-gray-400 font-normal"> · {d.count} units, 1 label</span>
                   )}
                 </p>
-                <p className="text-xs text-gray-400">{[d.device, d.storage, d.color].filter(Boolean).join(" · ")}</p>
+                <p className="text-xs text-gray-400">{[d.device, d.storage].filter(Boolean).join(" · ")}</p>
               </div>
             ))}
           </div>

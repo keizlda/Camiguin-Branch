@@ -62,8 +62,8 @@ function PrintBarcodeSheetModal({ devices, onClose }) {
                   <p className="text-gray-800 font-medium">{d.device}</p>
                   <p className="text-xs text-gray-400">
                     {d.batchCode}
-                    {[d.brand, d.storage, d.color].filter(Boolean).length > 0
-                      ? ` · ${[d.brand, d.storage, d.color].filter(Boolean).join(" · ")}`
+                    {[d.brand, d.storage].filter(Boolean).length > 0
+                      ? ` · ${[d.brand, d.storage].filter(Boolean).join(" · ")}`
                       : ""}
                   </p>
                 </div>
@@ -100,7 +100,7 @@ function PrintBarcodeSheetModal({ devices, onClose }) {
         </thead>
         <tbody>
           {rows.map((d, i) => {
-            const variant = [d.brand, d.storage, d.color].filter(Boolean).join(" · ");
+            const variant = [d.brand, d.storage].filter(Boolean).join(" · ");
             return (
               <tr key={d.batchCode} style={{ breakInside: "avoid" }}>
                 <td className="border border-gray-800 px-2 py-3 align-top">{i + 1}</td>

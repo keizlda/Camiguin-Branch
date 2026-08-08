@@ -21,7 +21,7 @@ function PendingShipmentsCard({ shells, onEdit, onDelete }) {
       <div className="space-y-3">
         {shells.map((s) => {
           const pct = Math.min(100, Math.round((s.linkedCount / s.quantityExpected) * 100));
-          const variant = [s.storage, s.color].filter(Boolean).join(" · ");
+          const variant = s.storage || "";
           return (
             <div key={s.id} className="border border-gray-100 rounded-lg p-3">
               <div className="flex items-center justify-between gap-3 mb-1.5">

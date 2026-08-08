@@ -10,7 +10,7 @@ export async function getCustomerReturns() {
     sale_items:sale_item_id (
       device_id,
       sales:sale_id ( customer_name, customer_phone, sold_at ),
-      devices:device_id ( batch_code, device_name, category, storage, color, brand )
+      devices:device_id ( batch_code, device_name, category, storage, brand )
     ),
     replacement:replacement_device_id ( batch_code, device_name )
   `);
@@ -28,7 +28,6 @@ export async function getCustomerReturns() {
       phone: r.sale_items?.sales?.customer_phone,
       device: r.sale_items?.devices?.device_name,
       storage: r.sale_items?.devices?.storage,
-      color: r.sale_items?.devices?.color,
       brand: r.sale_items?.devices?.brand,
       category: r.sale_items?.devices?.category,
       reason: r.reason,

@@ -43,7 +43,7 @@ function BulkOrderShipmentTable({ groups, onViewUnits }) {
                   </div>
                 </td>
                 <td className="py-3 text-gray-600">
-                  {[g.storage, g.color].filter(Boolean).join(" · ") || "—"}
+                  {g.storage || "—"}
                 </td>
                 <td className="py-3 text-gray-500">{g.dateArrived}</td>
                 <td className="py-3 text-gray-600">

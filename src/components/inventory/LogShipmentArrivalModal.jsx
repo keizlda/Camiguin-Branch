@@ -35,7 +35,6 @@ function createBlankForm() {
     category: "iPhone",
     model: "",
     customModel: "",
-    color: "",
     storage: "",
     brand: "",
     condition: "Brand New",
@@ -64,7 +63,7 @@ function createBlankForm() {
 //
 // Accessories/Repair Parts (always) or any other category with Bulk
 // switched on (a shipment that's genuinely several of the exact same
-// model/storage/color/condition) go straight into inventory as Available,
+// model/storage/condition) go straight into inventory as Available,
 // right here — Selling Price is asked up front instead of per-unit in Add
 // Device (see add_device's p_quantity in schema.sql). A shell still gets
 // logged underneath for Supplier Payables tracking, same as the
@@ -81,18 +80,17 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
   const catalog = productCatalog[form.category];
   const isOtherModel = form.model === OTHER_MODEL;
   const resolvedModel = isOtherModel ? form.customModel.trim() : form.model;
-  const modelColors = !isOtherModel && form.model ? catalog?.modelColors[form.model] || [] : [];
   const isRepairPart = isAccessoryLikeCategory(form.category);
   const isBulk = isRepairPart || form.bulkMode;
 
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
   const handleCategoryChange = (category) => {
-    setForm((f) => ({ ...f, category, model: "", customModel: "", color: "", storage: "", supplier: "", bulkMode: false }));
+    setForm((f) => ({ ...f, category, model: "", customModel: "", storage: "", supplier: "", bulkMode: false }));
   };
 
   const handleModelChange = (model) => {
-    setForm((f) => ({ ...f, model, customModel: "", color: "" }));
+    setForm((f) => ({ ...f, model, customModel: "" }));
   };
 
   const handleSubmit = async (e) => {
@@ -113,12 +111,12 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
       setError("Enter a Selling Price greater than ₱0.");
       return;
     }
-    // Accessories can leave storage/color blank (there's nothing to pick,
-    // see the hidden block below) or genuinely mixed — a bulk batch of an
-    // actual device is a committed single variant, though, the same as
-    // Add Device requires for one logged individually.
-    if (isBulk && !isRepairPart && (!form.color || !form.storage)) {
-      setError("Select a Color and Storage — a bulk batch is one exact variant, e.g. logged separately from other storage sizes.");
+    // Accessories can leave storage blank (there's nothing to pick, see
+    // the hidden block below) — a bulk batch of an actual device is a
+    // committed single variant, though, the same as Add Device requires
+    // for one logged individually.
+    if (isBulk && !isRepairPart && !form.storage) {
+      setError("Select a Storage — a bulk batch is one exact variant, e.g. logged separately from other storage sizes.");
       return;
     }
     setError("");
@@ -127,7 +125,6 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
       if (isBulk) {
         const dateArrivedIso = new Date(`${form.dateArrived}T00:00:00`).toISOString();
         const storage = isRepairPart ? null : form.storage;
-        const color = isRepairPart ? null : form.color;
 
         // Still logs a shell underneath (same as the placeholder path) so
         // this shipment keeps showing up in Supplier Payables — it just
@@ -140,7 +137,6 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
           supplierName: form.supplier,
           deviceName: resolvedModel,
           storage,
-          color,
           quantityExpected: Number(form.quantityExpected),
           unitCost: form.unitCost === "" ? null : Number(form.unitCost),
           dateArrived: dateArrivedIso,
@@ -162,7 +158,7 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
           deviceName: resolvedModel,
           category: catalog.dbValue,
           storage,
-          color,
+          color: null,
           brand: isRepairPart ? form.brand.trim() || null : null,
           status: "Available",
           supplierName: form.supplier,
@@ -180,7 +176,6 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
           supplierName: form.supplier,
           deviceName: resolvedModel,
           storage: form.storage,
-          color: form.color,
           quantityExpected: Number(form.quantityExpected),
           unitCost: form.unitCost === "" ? null : Number(form.unitCost),
           dateArrived: new Date(`${form.dateArrived}T00:00:00`).toISOString(),
@@ -275,9 +270,9 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
                 <div className="pr-3">
                   <p className="text-sm font-medium text-gray-700">Bulk (multiple identical units)</p>
                   <p className="text-xs text-gray-400">
-                    Turn on if this shipment is several of the exact same model/storage/color/condition — they go
+                    Turn on if this shipment is several of the exact same model/storage/condition — they go
                     straight into inventory sharing one batch code and one printed label, instead of a placeholder
-                    to link each unit to later. A different storage/color (e.g. 64GB vs 128GB) is always its own
+                    to link each unit to later. A different storage (e.g. 64GB vs 128GB) is always its own
                     separate batch.
                   </p>
                 </div>
@@ -299,57 +294,24 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
             )}
 
             {!isRepairPart && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                    Color{" "}
-                    {form.bulkMode ? (
-                      <span className="text-red-500">*</span>
-                    ) : (
-                      <span className="text-gray-400 font-normal">(optional — leave blank if mixed)</span>
-                    )}
-                  </label>
-                  {isOtherModel ? (
-                    <input
-                      type="text"
-                      value={form.color}
-                      onChange={(e) => update("color", e.target.value)}
-                      required={form.bulkMode}
-                      placeholder="Enter color"
-                      className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  Storage{" "}
+                  {form.bulkMode ? (
+                    <span className="text-red-500">*</span>
                   ) : (
-                    <select
-                      value={form.color}
-                      onChange={(e) => update("color", e.target.value)}
-                      required={form.bulkMode}
-                      disabled={!form.model}
-                      className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
-                    >
-                      <option value="">{form.model ? (form.bulkMode ? "Select color" : "Any color") : "Select a model first"}</option>
-                      {modelColors.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                    <span className="text-gray-400 font-normal">(optional)</span>
                   )}
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                    Storage{" "}
-                    {form.bulkMode ? (
-                      <span className="text-red-500">*</span>
-                    ) : (
-                      <span className="text-gray-400 font-normal">(optional)</span>
-                    )}
-                  </label>
-                  <select
-                    value={form.storage}
-                    onChange={(e) => update("storage", e.target.value)}
-                    required={form.bulkMode}
-                    className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">{form.bulkMode ? "Select storage" : "Any storage"}</option>
-                    {catalog.storages.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
+                </label>
+                <select
+                  value={form.storage}
+                  onChange={(e) => update("storage", e.target.value)}
+                  required={form.bulkMode}
+                  className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">{form.bulkMode ? "Select storage" : "Any storage"}</option>
+                  {catalog.storages.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
               </div>
             )}
 

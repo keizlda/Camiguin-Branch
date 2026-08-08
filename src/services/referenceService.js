@@ -26,15 +26,15 @@ export async function getDeviceStorages() {
   return deviceStorages;
 }
 
-// Shapes the database-backed categories + models/colors into the same
-// { [category]: { brand, storages, models, modelColors, prefix, dbValue,
-// isAccessoryLike } } structure every consumer (Add Device, Quick Add, Log
-// Shipment Arrival, batch-code generation) expects, keyed by categories.name
-// (the singular/canonical form — matches product_models.category).
+// Shapes the database-backed categories + models into the same
+// { [category]: { brand, storages, models, prefix, dbValue, isAccessoryLike
+// } } structure every consumer (Add Device, Quick Add, Log Shipment
+// Arrival, batch-code generation) expects, keyed by categories.name (the
+// singular/canonical form — matches product_models.category).
 export async function getProductCatalog() {
   const [{ data: categories, error: catError }, { data: models, error: modelError }] = await Promise.all([
     supabase.from("categories").select("name, brand, storages, prefix, db_value, is_accessory_like").eq("active", true),
-    supabase.from("product_models").select("category, name, colors").order("name"),
+    supabase.from("product_models").select("category, name").order("name"),
   ]);
   if (catError) throw catError;
   if (modelError) throw modelError;
@@ -49,7 +49,6 @@ export async function getProductCatalog() {
       dbValue: c.db_value,
       isAccessoryLike: c.is_accessory_like,
       models: categoryModels.map((m) => m.name),
-      modelColors: Object.fromEntries(categoryModels.map((m) => [m.name, m.colors])),
     };
   }
   return catalog;
@@ -101,12 +100,12 @@ export async function setCategoryActive(categoryId, active) {
   if (error) throw error;
 }
 
-// The admin management view needs each model's id (to remove it or edit its
-// colors), which the shaped getProductCatalog() result above doesn't carry.
+// The admin management view needs each model's id (to remove it), which the
+// shaped getProductCatalog() result above doesn't carry.
 export async function getCatalogModels() {
   const { data, error } = await supabase
     .from("product_models")
-    .select("id, category, name, colors")
+    .select("id, category, name")
     .order("category")
     .order("name");
   if (error) throw error;
@@ -120,24 +119,6 @@ export async function addProductModel({ category, name }) {
 
 export async function removeProductModel(modelId) {
   const { error } = await supabase.from("product_models").delete().eq("id", modelId);
-  if (error) throw error;
-}
-
-export async function addModelColor(modelId, colors, color) {
-  const trimmed = color.trim();
-  if (!trimmed || colors.includes(trimmed)) return;
-  const { error } = await supabase
-    .from("product_models")
-    .update({ colors: [...colors, trimmed] })
-    .eq("id", modelId);
-  if (error) throw error;
-}
-
-export async function removeModelColor(modelId, colors, color) {
-  const { error } = await supabase
-    .from("product_models")
-    .update({ colors: colors.filter((c) => c !== color) })
-    .eq("id", modelId);
   if (error) throw error;
 }
 

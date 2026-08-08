@@ -3,7 +3,7 @@ import { formatDate, formatTime } from "../utils/datetime";
 import { expireOverdueReservations } from "./reservationsService";
 
 const DEVICE_SELECT =
-  "id, batch_code, device_name, category, storage, color, brand, status, supplier_id, purchase_price, selling_price, condition, notes, date_added, bulk_order_shell_id, date_arrived, suppliers:supplier_id ( name )";
+  "id, batch_code, device_name, category, storage, brand, status, supplier_id, purchase_price, selling_price, condition, notes, date_added, bulk_order_shell_id, date_arrived, suppliers:supplier_id ( name )";
 
 function mapDevice(d) {
   return {
@@ -12,7 +12,6 @@ function mapDevice(d) {
     device: d.device_name,
     category: d.category,
     storage: d.storage,
-    color: d.color,
     brand: d.brand,
     status: d.status,
     supplier: d.suppliers?.name,
@@ -89,7 +88,7 @@ export async function deleteDevice(id) {
 export async function getAvailableDevicesForReplacement(deviceName) {
   const { data, error } = await supabase
     .from("devices")
-    .select("id, batch_code, device_name, storage, color, brand")
+    .select("id, batch_code, device_name, storage, brand")
     .eq("status", "Available")
     .eq("device_name", deviceName);
 
@@ -100,7 +99,6 @@ export async function getAvailableDevicesForReplacement(deviceName) {
     batchCode: d.batch_code,
     device: d.device_name,
     storage: d.storage,
-    color: d.color,
     brand: d.brand,
   }));
 }
@@ -110,7 +108,7 @@ export async function getAvailableDevicesForReplacement(deviceName) {
 export async function getAvailableDevicesForSale() {
   const { data, error } = await supabase
     .from("devices")
-    .select("id, batch_code, device_name, category, storage, color, brand, selling_price, purchase_price")
+    .select("id, batch_code, device_name, category, storage, brand, selling_price, purchase_price")
     .eq("status", "Available");
 
   if (error) throw error;
@@ -121,7 +119,6 @@ export async function getAvailableDevicesForSale() {
     product: d.device_name,
     category: d.category,
     storage: d.storage,
-    color: d.color,
     brand: d.brand,
     price: d.selling_price,
     purchasePrice: d.purchase_price,
@@ -211,7 +208,7 @@ export async function getSupplierDefectiveRecords() {
     action_taken,
     date_detected,
     device_id,
-    devices:device_id ( batch_code, device_name, storage, color, brand ),
+    devices:device_id ( batch_code, device_name, storage, brand ),
     suppliers:supplier_id ( name )
   `);
 
@@ -226,7 +223,6 @@ export async function getSupplierDefectiveRecords() {
       batchCode: r.devices?.batch_code,
       device: r.devices?.device_name,
       storage: r.devices?.storage,
-      color: r.devices?.color,
       brand: r.devices?.brand,
       supplier: r.suppliers?.name,
       dateDetected: formatDate(r.date_detected),

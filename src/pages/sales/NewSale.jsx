@@ -369,7 +369,6 @@ function NewSale() {
         items: cart.map((c) => ({
           device: c.product,
           storage: c.storage,
-          color: c.color,
           batchCode: c.batchCode,
           price: Number(c.actualPrice) || 0,
         })),
@@ -480,7 +479,6 @@ function NewSale() {
                   <tr className="text-left text-gray-400 border-b border-gray-100">
                     <th className="pb-2 font-medium">Product</th>
                     <th className="pb-2 font-medium">Storage</th>
-                    <th className="pb-2 font-medium">Color</th>
                     <th className="pb-2 font-medium">Price</th>
                     <th className="pb-2 font-medium"></th>
                   </tr>
@@ -488,7 +486,7 @@ function NewSale() {
                 <tbody>
                   {groupedProducts.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-8 text-center text-gray-400">
+                      <td colSpan={4} className="py-8 text-center text-gray-400">
                         No products found.
                       </td>
                     </tr>
@@ -524,7 +522,6 @@ function NewSale() {
                             </div>
                           </td>
                           <td className="py-2.5 text-gray-600">{first.storage || "—"}</td>
-                          <td className="py-2.5 text-gray-600">{first.color || "—"}</td>
                           <td className="py-2.5 text-gray-700">₱{first.price.toLocaleString()}</td>
                           <td className="py-2.5 text-right">
                             {isBatch ? (
@@ -635,7 +632,7 @@ function NewSale() {
                     <div className="min-w-0">
                       <p className="text-sm text-gray-800 font-medium truncate">{c.product}</p>
                       <p className="text-xs text-gray-400">
-                        {[c.brand, c.storage, c.color, c.batchCode].filter(Boolean).join(" · ")}
+                        {[c.brand, c.storage, c.batchCode].filter(Boolean).join(" · ")}
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">
                         Capital: ₱{(Number(c.purchasePrice) || 0).toLocaleString()} · Base: ₱
@@ -796,7 +793,7 @@ function NewSale() {
                       {swapTradeIn.deviceName} <span className="text-gray-400">· {swapTradeIn.batchCode}</span>
                     </p>
                     <p className="text-xs text-gray-500">
-                      {[swapTradeIn.storage, swapTradeIn.color].filter(Boolean).join(" · ")} — Appraised at ₱
+                      {swapTradeIn.storage || "—"} — Appraised at ₱
                       {swapTradeIn.appraisedValue.toLocaleString()}
                     </p>
                   </div>

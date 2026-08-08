@@ -28,7 +28,6 @@ function EditDeviceModal({ device, onClose, onSaved }) {
     deviceName: device.device || "",
     category: device.category || "",
     storage: device.storage || "",
-    color: device.color || "",
     brand: device.brand || "",
     status: device.status,
     condition: device.condition || "",
@@ -66,7 +65,10 @@ function EditDeviceModal({ device, onClose, onSaved }) {
         deviceName: form.deviceName.trim(),
         category: form.category,
         storage: isRepairPart ? null : form.storage.trim(),
-        color: isRepairPart ? null : form.color.trim(),
+        // No longer a field in this form — preserves whatever was already
+        // recorded (if anything) instead of silently wiping it out just
+        // because some other field on this device got edited.
+        color: device.color ?? null,
         brand: isRepairPart ? form.brand.trim() || null : null,
         status: form.status,
         supplierName: form.supplierName,
@@ -145,26 +147,15 @@ function EditDeviceModal({ device, onClose, onSaved }) {
           </div>
 
           {!isRepairPart && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Storage</label>
-                <input
-                  type="text"
-                  value={form.storage}
-                  onChange={(e) => update("storage", e.target.value)}
-                  placeholder="256GB or -"
-                  className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Color</label>
-                <input
-                  type="text"
-                  value={form.color}
-                  onChange={(e) => update("color", e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Storage</label>
+              <input
+                type="text"
+                value={form.storage}
+                onChange={(e) => update("storage", e.target.value)}
+                placeholder="256GB or -"
+                className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
           )}
 

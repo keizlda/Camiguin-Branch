@@ -32,7 +32,7 @@ function ReturnDetailsModal({ record, onClose }) {
           <Row label="Batch Code">{record.batchCode}</Row>
           <Row label="Device">
             {record.device}
-            <span className="text-gray-400"> · {record.storage} · {record.color}</span>
+            <span className="text-gray-400"> · {record.storage}</span>
           </Row>
           <Row label="Customer">
             {record.customer}

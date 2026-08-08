@@ -74,10 +74,7 @@ function DeviceDetailsModal({ device, paymentMethod, downPayment, balance, soldP
           <Row label="Device">{device.device}</Row>
           <Row label="Category">{device.category}</Row>
           {!isAccessoryLikeCategory(device.category) && (
-            <>
-              <Row label="Storage">{device.storage || "—"}</Row>
-              <Row label="Color">{device.color || "—"}</Row>
-            </>
+            <Row label="Storage">{device.storage || "—"}</Row>
           )}
           {isAccessoryLikeCategory(device.category) && <Row label="Brand">{device.brand || "—"}</Row>}
           <Row label="Condition">{device.condition || "—"}</Row>

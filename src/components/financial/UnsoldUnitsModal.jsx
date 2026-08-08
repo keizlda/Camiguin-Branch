@@ -53,7 +53,7 @@ function UnsoldUnitsModal({ units, onClose, onView }) {
                   >
                     <td className="py-2.5 text-gray-700">{u.batchCode}</td>
                     <td className="py-2.5 text-gray-800 font-medium">
-                      {[u.device, u.storage, u.color].filter(Boolean).join(" · ")}
+                      {[u.device, u.storage].filter(Boolean).join(" · ")}
                     </td>
                     <td className="py-2.5 text-gray-600">{u.condition || "—"}</td>
                     <td className="py-2.5">

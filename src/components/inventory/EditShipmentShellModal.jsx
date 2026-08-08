@@ -14,7 +14,6 @@ function EditShipmentShellModal({ shell, onClose, onSaved }) {
   const [supplierName, setSupplierName] = useState(shell.supplierName || "");
   const [deviceName, setDeviceName] = useState(shell.deviceName || "");
   const [storage, setStorage] = useState(shell.storage || "");
-  const [color, setColor] = useState(shell.color || "");
   const [quantityExpected, setQuantityExpected] = useState(String(shell.quantityExpected ?? ""));
   const [unitCost, setUnitCost] = useState(shell.unitCost != null ? String(shell.unitCost) : "");
   // toDatetimeLocalString gives local YYYY-MM-DDTHH:mm — slicing to 10
@@ -45,7 +44,6 @@ function EditShipmentShellModal({ shell, onClose, onSaved }) {
         supplierName,
         deviceName: deviceName.trim(),
         storage: storage.trim(),
-        color: color.trim(),
         quantityExpected: Number(quantityExpected),
         unitCost: unitCost === "" ? null : Number(unitCost),
         dateArrived: new Date(`${dateArrived}T00:00:00`).toISOString(),
@@ -95,29 +93,16 @@ function EditShipmentShellModal({ shell, onClose, onSaved }) {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  Color <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  Storage <span className="text-gray-400 font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={storage}
-                  onChange={(e) => setStorage(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                Storage <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={storage}
+                onChange={(e) => setStorage(e.target.value)}
+                className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">

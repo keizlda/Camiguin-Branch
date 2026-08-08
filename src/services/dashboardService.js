@@ -14,7 +14,6 @@ export async function getRecentActivity() {
     batchCode: d.batch_code,
     device: d.device_name,
     storage: d.storage,
-    color: d.color,
     status: d.status,
     customer: d.customer_name || "",
     phone: d.customer_phone || "",

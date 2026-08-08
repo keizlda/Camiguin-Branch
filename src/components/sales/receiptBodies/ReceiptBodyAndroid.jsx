@@ -33,11 +33,6 @@ const peso = (n) => "P" + (Number(n) || 0).toLocaleString("en-PH", { minimumFrac
 const RECEIPT_FONT_PX = 14;
 const RECEIPT_CHARS = 20;
 
-// Same real print also showed the "·" (middle dot) separator between
-// storage/color come out as mojibake ("À") — another non-ASCII character
-// this print path's font doesn't carry. A plain hyphen is ASCII-safe.
-const SEPARATOR = " - ";
-
 function padLine(left, right) {
   const gap = RECEIPT_CHARS - left.length - right.length;
   if (gap < 1) {
@@ -117,8 +112,8 @@ function ReceiptBodyAndroid({ receipt }) {
         {receipt.items.map((item, i) => (
           <div key={i} className="mb-2">
             <p className="font-bold">{item.device}</p>
-            {(item.storage || item.color) && (
-              <p className="text-gray-500">{[item.storage, item.color].filter(Boolean).join(SEPARATOR)}</p>
+            {item.storage && (
+              <p className="text-gray-500">{item.storage}</p>
             )}
             {item.batchCode && <p className="text-gray-500">Batch: {item.batchCode}</p>}
             {/* Every unit here is a serialized device — qty is always

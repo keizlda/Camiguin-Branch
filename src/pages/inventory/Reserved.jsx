@@ -257,7 +257,7 @@ function Reserved() {
                   <td className="py-3 text-gray-600">{row.salesperson}</td>
                   <td className="py-3">
                     <p className="text-gray-800 font-medium">{row.device}</p>
-                    <p className="text-xs text-gray-400">{row.storage} · {row.color}</p>
+                    <p className="text-xs text-gray-400">{row.storage}</p>
                   </td>
                   <td className="py-3">
                     <p className="text-gray-600">{row.reservedUntil}</p>

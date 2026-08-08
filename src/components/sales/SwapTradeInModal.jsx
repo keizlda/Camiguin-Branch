@@ -32,7 +32,6 @@ function SwapTradeInModal({ onClose, onCreated }) {
     category: "iPhone",
     model: "",
     customModel: "",
-    color: "",
     storage: "",
     condition: "Pre-owned",
     supplier: "",
@@ -45,7 +44,6 @@ function SwapTradeInModal({ onClose, onCreated }) {
   const catalog = productCatalog[form.category];
   const isOtherModel = form.model === OTHER_MODEL;
   const resolvedModel = isOtherModel ? form.customModel.trim() : form.model;
-  const modelColors = !isOtherModel && form.model ? catalog?.modelColors[form.model] || [] : [];
   const isRepairPart = isAccessoryLikeCategory(form.category);
 
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
@@ -68,7 +66,6 @@ function SwapTradeInModal({ onClose, onCreated }) {
       category,
       model: "",
       customModel: "",
-      color: "",
       storage: "",
       condition: "Pre-owned",
       supplier: "",
@@ -76,7 +73,7 @@ function SwapTradeInModal({ onClose, onCreated }) {
   };
 
   const handleModelChange = (model) => {
-    setForm((f) => ({ ...f, model, customModel: "", color: "" }));
+    setForm((f) => ({ ...f, model, customModel: "" }));
   };
 
   const handleSubmit = async (e) => {
@@ -90,7 +87,7 @@ function SwapTradeInModal({ onClose, onCreated }) {
         deviceName: resolvedModel,
         category: catalog.dbValue,
         storage: isRepairPart ? null : form.storage,
-        color: isRepairPart ? null : form.color,
+        color: null,
         status: "Available",
         supplierName: form.supplier,
         condition: form.condition,
@@ -107,7 +104,6 @@ function SwapTradeInModal({ onClose, onCreated }) {
         deviceName: resolvedModel,
         category: catalog.dbValue,
         storage: isRepairPart ? null : form.storage,
-        color: isRepairPart ? null : form.color,
         appraisedValue,
       });
     } catch (err) {
@@ -197,47 +193,19 @@ function SwapTradeInModal({ onClose, onCreated }) {
             )}
 
             {!isRepairPart && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                    Color <span className="text-red-500">*</span>
-                  </label>
-                  {isOtherModel ? (
-                    <input
-                      type="text"
-                      value={form.color}
-                      onChange={(e) => update("color", e.target.value)}
-                      required
-                      placeholder="Enter color"
-                      className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  ) : (
-                    <select
-                      value={form.color}
-                      onChange={(e) => update("color", e.target.value)}
-                      required
-                      disabled={!form.model}
-                      className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
-                    >
-                      <option value="">{form.model ? "Select color" : "Select a model first"}</option>
-                      {modelColors.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                    Storage <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={form.storage}
-                    onChange={(e) => update("storage", e.target.value)}
-                    required
-                    className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Select storage</option>
-                    {catalog.storages.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  Storage <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={form.storage}
+                  onChange={(e) => update("storage", e.target.value)}
+                  required
+                  className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select storage</option>
+                  {catalog.storages.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
               </div>
             )}
 

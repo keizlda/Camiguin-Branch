@@ -435,7 +435,7 @@ function Financial() {
                 <th className="px-3 py-2.5 font-medium rounded-l-lg">#</th>
                 <th className="px-3 py-2.5 font-medium">Date</th>
                 <th className="px-3 py-2.5 font-medium">Batch Code</th>
-                <th className="px-3 py-2.5 font-medium">Unit / Model / Gb / Color</th>
+                <th className="px-3 py-2.5 font-medium">Unit / Model / Storage</th>
                 <th className="px-3 py-2.5 font-medium text-right">Capital</th>
                 <th className="px-3 py-2.5 font-medium text-right">Disposal Price</th>
                 <th className="px-3 py-2.5 font-medium text-right">Net Profit</th>
@@ -456,7 +456,7 @@ function Financial() {
                     <td className="px-3 py-3 text-gray-700 whitespace-nowrap">{row.date}</td>
                     <td className="px-3 py-3 text-gray-700 whitespace-nowrap">{row.batchCode}</td>
                     <td className="px-3 py-3 text-gray-800 font-medium">
-                      {[row.device, row.storage, row.color].filter(Boolean).join(" · ")}
+                      {[row.device, row.storage].filter(Boolean).join(" · ")}
                       {isPendingBulk(row) && (
                         <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-100 text-orange-600 align-middle">
                           Bulk · Pending

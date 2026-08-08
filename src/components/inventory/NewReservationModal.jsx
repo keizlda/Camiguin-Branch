@@ -109,7 +109,7 @@ function NewReservationModal({ onClose, onCreated }) {
                 <div>
                   <p className="text-sm font-medium text-gray-800">{selectedDevice.product}</p>
                   <p className="text-xs text-gray-500">
-                    {selectedDevice.batchCode} · {selectedDevice.storage} · {selectedDevice.color} · ₱
+                    {selectedDevice.batchCode} · {selectedDevice.storage} · ₱
                     {selectedDevice.price.toLocaleString()}
                   </p>
                 </div>
@@ -141,7 +141,7 @@ function NewReservationModal({ onClose, onCreated }) {
                       >
                         <p className="text-sm text-gray-800">{d.product}</p>
                         <p className="text-xs text-gray-400">
-                          {d.batchCode} · {d.storage} · {d.color} · ₱{d.price.toLocaleString()}
+                          {d.batchCode} · {d.storage} · ₱{d.price.toLocaleString()}
                         </p>
                       </button>
                     ))

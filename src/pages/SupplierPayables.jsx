@@ -93,7 +93,7 @@ function SupplierPayables() {
       const order = map.get(row.saleId);
       order.items.push({
         batchCode: row.batchCode,
-        unit: [row.device, row.storage, row.color].filter(Boolean).join(" · "),
+        unit: [row.device, row.storage].filter(Boolean).join(" · "),
         price: row.total,
         netProfit: row.netProfit,
       });
@@ -220,7 +220,7 @@ function SupplierPayables() {
                         <td className="py-3 text-gray-700">{s.supplierName || "—"}</td>
                         <td className="py-3 text-gray-800 font-medium">{s.deviceName}</td>
                         <td className="py-3 text-gray-600">
-                          {[s.storage, s.color].filter(Boolean).join(" · ") || "—"}
+                          {s.storage || "—"}
                         </td>
                         <td className="py-3 text-gray-600">{s.quantityExpected}</td>
                         <td className="py-3 text-gray-600">

@@ -26,7 +26,7 @@ function batchCodeDatePrefix() {
 }
 
 function formatShellLabel(shell) {
-  const variant = [shell.storage, shell.color].filter(Boolean).join(" · ");
+  const variant = shell.storage || "";
   const arrived = formatDate(shell.dateArrived);
   return `${shell.deviceName}${variant ? " · " + variant : ""} — arrived ${arrived} (${shell.linkedCount}/${shell.quantityExpected} logged)`;
 }
@@ -59,7 +59,6 @@ function createBlankForm() {
     customCategory: "",
     model: "",
     customModel: "",
-    color: "",
     storage: "",
     brand: "",
     condition: "Brand New",
@@ -180,7 +179,6 @@ function AddDevice() {
   const resolvedCategory = isOtherCategory ? form.customCategory.trim() : form.category;
   const isOtherModel = form.model === OTHER_MODEL;
   const resolvedModel = isOtherModel ? form.customModel.trim() : form.model;
-  const modelColors = !isOtherModel && form.model ? catalog?.modelColors[form.model] || [] : [];
   const isDefective = form.status === "Supplier Defective";
   // A brand-new, uncatalogued category has no way to know if it's
   // accessory-like — default to treating it as a serialized device (the
@@ -191,8 +189,8 @@ function AddDevice() {
   // category only does when the Bulk toggle is on — most serialized-device
   // shipments still arrive as individual units with their own condition,
   // not a genuinely identical batch, so this stays opt-in rather than
-  // automatic. Storage/color/condition/price still apply to the whole
-  // batch either way — a bulk entry is "N identical units of this exact
+  // automatic. Storage/condition/price still apply to the whole batch
+  // either way — a bulk entry is "N identical units of this exact
   // variant", e.g. a Tecno Spark Go 3 64GB batch is logged separately from
   // its 128GB batch, never combined under one code.
   const isBulk = isRepairPart || form.bulkMode;
@@ -213,7 +211,6 @@ function AddDevice() {
       // of showing a pointless empty dropdown first.
       model: category === OTHER_CATEGORY ? OTHER_MODEL : "",
       customModel: "",
-      color: "",
       storage: "",
       brand: "",
       quantity: "1",
@@ -234,12 +231,12 @@ function AddDevice() {
   };
 
   const handleModelChange = (model) => {
-    setForm((f) => ({ ...f, model, customModel: "", color: "" }));
+    setForm((f) => ({ ...f, model, customModel: "" }));
   };
 
-  // Log Shipment Arrival already picked the model/color/storage/supplier
-  // from the same catalog, so pulling them back in here just saves staff
-  // from re-selecting what's already known about the shipment.
+  // Log Shipment Arrival already picked the model/storage/supplier from
+  // the same catalog, so pulling them back in here just saves staff from
+  // re-selecting what's already known about the shipment.
   const handleShellChange = (shellId) => {
     const shell = pendingShells.find((s) => s.id === shellId);
     if (!shell) {
@@ -255,7 +252,6 @@ function AddDevice() {
       category: matchedCategory || f.category,
       model: matchedCategory ? shell.deviceName : OTHER_MODEL,
       customModel: matchedCategory ? "" : shell.deviceName,
-      color: shell.color || "",
       storage: shell.storage || "",
       supplier: shell.supplierName || f.supplier,
     }));
@@ -286,11 +282,11 @@ function AddDevice() {
         batchCode: form.batchCode.trim(),
         deviceName: resolvedModel,
         // devices.category is free text (not a foreign key), same as
-        // device_name/color — a custom category is stored exactly as
-        // typed, no catalog dbValue to fall back on.
+        // device_name — a custom category is stored exactly as typed, no
+        // catalog dbValue to fall back on.
         category: isOtherCategory ? resolvedCategory : catalog.dbValue,
         storage: isRepairPart ? null : form.storage,
-        color: isRepairPart ? null : form.color,
+        color: null,
         brand: isRepairPart ? form.brand.trim() || null : null,
         status: form.status,
         supplierName: form.supplier,
@@ -311,7 +307,6 @@ function AddDevice() {
         batchCode: form.batchCode.trim(),
         device: resolvedModel,
         storage: isRepairPart ? null : form.storage,
-        color: isRepairPart ? null : form.color,
       });
       setForm(createBlankForm());
       loadPendingShells();
@@ -409,8 +404,8 @@ function AddDevice() {
             ))}
           </select>
           <p className="text-xs text-gray-400 mt-1">
-            Fills in category, model, color, storage, and supplier from the shipment, and records its actual
-            arrival date. Batch code, price, and status still need to be entered per unit.
+            Fills in category, model, storage, and supplier from the shipment, and records its actual arrival
+            date. Batch code, price, and status still need to be entered per unit.
           </p>
         </div>
       )}
@@ -482,35 +477,6 @@ function AddDevice() {
             {!isRepairPart && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Color <span className="text-red-500">*</span>
-                </label>
-                {isOtherModel ? (
-                  <input
-                    type="text"
-                    value={form.color}
-                    onChange={(e) => update("color", e.target.value)}
-                    required
-                    placeholder="Enter color"
-                    className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                ) : (
-                  <select
-                    value={form.color}
-                    onChange={(e) => update("color", e.target.value)}
-                    required
-                    disabled={!form.model}
-                    className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    <option value="">{form.model ? "Select color" : "Select a model first"}</option>
-                    {modelColors.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                )}
-              </div>
-            )}
-
-            {!isRepairPart && (
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
                   Storage <span className="text-red-500">*</span>
                 </label>
                 {isOtherCategory ? (
@@ -541,9 +507,9 @@ function AddDevice() {
                 <div className="pr-3">
                   <p className="text-sm font-medium text-gray-700">Bulk (multiple identical units)</p>
                   <p className="text-xs text-gray-400">
-                    Turn on if this shipment is several of the exact same model/storage/color/condition — they'll
-                    share one batch code and one printed label instead of being logged one at a time. A different
-                    storage/color is always its own separate batch, toggle and all.
+                    Turn on if this shipment is several of the exact same model/storage/condition — they'll share
+                    one batch code and one printed label instead of being logged one at a time. A different storage
+                    is always its own separate batch, toggle and all.
                   </p>
                 </div>
                 <button
@@ -786,12 +752,7 @@ function AddDevice() {
             <div>
               <p className="text-sm font-semibold text-gray-800">{resolvedModel || "—"}</p>
               {isRepairPart && form.brand && <p className="text-xs text-gray-500">{form.brand}</p>}
-              {!isRepairPart && (
-                <>
-                  <p className="text-xs text-gray-500">{form.storage || "—"}</p>
-                  <p className="text-xs text-gray-500">{form.color || "—"}</p>
-                </>
-              )}
+              {!isRepairPart && <p className="text-xs text-gray-500">{form.storage || "—"}</p>}
             </div>
           </div>
 
@@ -817,16 +778,10 @@ function AddDevice() {
               </div>
             )}
             {!isRepairPart && (
-              <>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Color</span>
-                  <span className="text-gray-700">{form.color || "—"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">Storage</span>
-                  <span className="text-gray-700">{form.storage || "—"}</span>
-                </div>
-              </>
+              <div className="flex justify-between">
+                <span className="text-gray-400">Storage</span>
+                <span className="text-gray-700">{form.storage || "—"}</span>
+              </div>
             )}
             <div className="flex justify-between">
               <span className="text-gray-400">Condition</span>

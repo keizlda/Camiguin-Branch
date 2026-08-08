@@ -4,8 +4,6 @@ import {
   getCatalogModels,
   addProductModel,
   removeProductModel,
-  addModelColor,
-  removeModelColor,
   getAllSuppliers,
   addSupplier,
   setSupplierActive,
@@ -15,7 +13,7 @@ import {
   setCategoryActive,
 } from "../../services/referenceService";
 
-// Admin-only catalog management — models/colors/categories used to be
+// Admin-only catalog management — models/categories used to be
 // hardcoded in the app's source, so adding a new Android brand (or a new
 // Apple release) meant a code deploy. This edits the same
 // categories/product_models/suppliers tables Add Device already reads
@@ -35,7 +33,7 @@ function ManageCatalogModal({ onClose, onChanged }) {
 
         <div className="flex gap-1 px-5 pt-3 border-b border-gray-100">
           {[
-            { id: "catalog", label: "Models & Colors" },
+            { id: "catalog", label: "Models" },
             { id: "categories", label: "Categories & Brands" },
             { id: "suppliers", label: "Suppliers" },
           ].map((t) => (
@@ -71,18 +69,13 @@ function CatalogTab({ onChanged }) {
   const [categories, setCategories] = useState([]);
   const [category, setCategory] = useState("");
   const [models, setModels] = useState([]);
-  const [selectedModelId, setSelectedModelId] = useState(null);
   const [newModelName, setNewModelName] = useState("");
-  const [newColor, setNewColor] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const load = useCallback(() => {
     getCatalogModels()
-      .then((rows) => {
-        setModels(rows);
-        setSelectedModelId((id) => (rows.some((m) => m.id === id) ? id : null));
-      })
+      .then(setModels)
       .catch((err) => setError(err.message || "Failed to load models."));
   }, []);
   useEffect(() => {
@@ -107,7 +100,6 @@ function CatalogTab({ onChanged }) {
   };
 
   const modelsInCategory = models.filter((m) => m.category === category);
-  const selectedModel = models.find((m) => m.id === selectedModelId);
 
   const handleAddModel = async () => {
     if (!newModelName.trim()) return;
@@ -138,35 +130,6 @@ function CatalogTab({ onChanged }) {
     }
   };
 
-  const handleAddColor = async () => {
-    if (!newColor.trim() || !selectedModel) return;
-    setError("");
-    setBusy(true);
-    try {
-      await addModelColor(selectedModel.id, selectedModel.colors, newColor);
-      setNewColor("");
-      notify();
-    } catch (err) {
-      setError(err.message || "Failed to add color.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleRemoveColor = async (color) => {
-    if (!selectedModel) return;
-    setError("");
-    setBusy(true);
-    try {
-      await removeModelColor(selectedModel.id, selectedModel.colors, color);
-      notify();
-    } catch (err) {
-      setError(err.message || "Failed to remove color.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <div className="space-y-4">
       {error && (
@@ -180,105 +143,48 @@ function CatalogTab({ onChanged }) {
         <label className="block text-xs font-medium text-gray-600 mb-1.5">Category</label>
         <select
           value={category}
-          onChange={(e) => { setCategory(e.target.value); setSelectedModelId(null); }}
+          onChange={(e) => setCategory(e.target.value)}
           className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {/* Models list */}
-        <div>
-          <p className="text-xs font-medium text-gray-600 mb-1.5">Models</p>
-          <div className="border border-gray-100 rounded-lg divide-y divide-gray-100 max-h-56 overflow-y-auto">
-            {modelsInCategory.length === 0 ? (
-              <p className="text-sm text-gray-400 text-center py-6">No models in this category yet.</p>
-            ) : (
-              modelsInCategory.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setSelectedModelId(m.id)}
-                  className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm ${
-                    selectedModelId === m.id ? "bg-blue-50 text-blue-700" : "hover:bg-gray-50 text-gray-700"
-                  }`}
-                >
-                  <span className="truncate">{m.name}</span>
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); handleRemoveModel(m); }}
-                    className="text-gray-400 hover:text-red-500 flex-shrink-0"
-                  >
-                    <Trash2 size={14} />
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
-          <div className="flex gap-2 mt-2">
-            <input
-              type="text"
-              value={newModelName}
-              onChange={(e) => setNewModelName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddModel()}
-              placeholder="New model name"
-              className="flex-1 border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={handleAddModel}
-              disabled={busy || !newModelName.trim()}
-              className="px-3 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60"
-            >
-              <Plus size={14} />
-            </button>
-          </div>
-        </div>
-
-        {/* Colors for selected model */}
-        <div>
-          <p className="text-xs font-medium text-gray-600 mb-1.5">
-            Colors {selectedModel ? `— ${selectedModel.name}` : ""}
-          </p>
-          {!selectedModel ? (
-            <p className="text-sm text-gray-400 border border-gray-100 rounded-lg py-6 text-center">
-              Select a model to manage its colors.
-            </p>
+      <div>
+        <p className="text-xs font-medium text-gray-600 mb-1.5">Models</p>
+        <div className="border border-gray-100 rounded-lg divide-y divide-gray-100 max-h-56 overflow-y-auto">
+          {modelsInCategory.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-6">No models in this category yet.</p>
           ) : (
-            <>
-              <div className="flex flex-wrap gap-1.5 border border-gray-100 rounded-lg p-2 min-h-[3rem]">
-                {selectedModel.colors.length === 0 ? (
-                  <p className="text-sm text-gray-400 px-1 py-1">No colors yet.</p>
-                ) : (
-                  selectedModel.colors.map((c) => (
-                    <span key={c} className="flex items-center gap-1 bg-gray-100 text-gray-700 text-xs rounded-full pl-2.5 pr-1.5 py-1">
-                      {c}
-                      <button onClick={() => handleRemoveColor(c)} className="text-gray-400 hover:text-red-500">
-                        <X size={12} />
-                      </button>
-                    </span>
-                  ))
-                )}
-              </div>
-              <div className="flex gap-2 mt-2">
-                <input
-                  type="text"
-                  value={newColor}
-                  onChange={(e) => setNewColor(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAddColor()}
-                  placeholder="New color"
-                  className="flex-1 border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+            modelsInCategory.map((m) => (
+              <div key={m.id} className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-gray-700">
+                <span className="truncate">{m.name}</span>
                 <button
-                  onClick={handleAddColor}
-                  disabled={busy || !newColor.trim()}
-                  className="px-3 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60"
+                  onClick={() => handleRemoveModel(m)}
+                  className="text-gray-400 hover:text-red-500 flex-shrink-0"
                 >
-                  <Plus size={14} />
+                  <Trash2 size={14} />
                 </button>
               </div>
-            </>
+            ))
           )}
+        </div>
+        <div className="flex gap-2 mt-2">
+          <input
+            type="text"
+            value={newModelName}
+            onChange={(e) => setNewModelName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAddModel()}
+            placeholder="New model name"
+            className="flex-1 border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={handleAddModel}
+            disabled={busy || !newModelName.trim()}
+            className="px-3 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60"
+          >
+            <Plus size={14} />
+          </button>
         </div>
       </div>
     </div>
@@ -439,7 +345,7 @@ function CategoriesTab({ onChanged }) {
               onChange={(e) => setNewIsAccessoryLike(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
-            Accessory-like (no Color/Storage, different condition options)
+            Accessory-like (no Storage, different condition options)
           </label>
           <button
             onClick={handleAdd}

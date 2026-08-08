@@ -108,7 +108,6 @@ function SalesHistory() {
       items: allUnits.map((u) => ({
         device: u.device,
         storage: u.storage,
-        color: u.color,
         batchCode: u.batchCode,
         price: u.total,
       })),
@@ -411,10 +410,8 @@ function SalesHistory() {
                     </td>
                     <td className="py-3">
                       <p className="text-gray-800 font-medium">{row.device}</p>
-                      {(row.storage || row.color) && (
-                        <p className="text-xs text-gray-400">
-                          {[row.storage, row.color].filter(Boolean).join(" · ")}
-                        </p>
+                      {row.storage && (
+                        <p className="text-xs text-gray-400">{row.storage}</p>
                       )}
                     </td>
                     <td className="py-3 text-gray-700 font-medium">₱{row.total.toLocaleString()}</td>

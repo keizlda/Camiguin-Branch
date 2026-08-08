@@ -243,7 +243,6 @@ function AllDevices() {
           supplierName: shell?.supplierName || units[0].supplier,
           deviceName: shell?.deviceName || units[0].device,
           storage: shell?.storage || units[0].storage,
-          color: shell?.color,
           dateArrived: shell?.dateArrived ? shell.dateArrived.slice(0, 10) : units[0].dateAdded,
           quantityExpected: shell?.quantityExpected,
           status: shell?.status,

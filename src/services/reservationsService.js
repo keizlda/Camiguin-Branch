@@ -33,7 +33,7 @@ export async function getReservedDevices() {
     total_price,
     down_payment,
     created_at,
-    devices:device_id ( id, batch_code, device_name, category, storage, color, brand ),
+    devices:device_id ( id, batch_code, device_name, category, storage, brand ),
     profiles:salesperson_id ( name )
   `
     )
@@ -75,7 +75,6 @@ export async function getReservedDevices() {
         device: r.devices?.device_name,
         category: r.devices?.category,
         storage: r.devices?.storage,
-        color: r.devices?.color,
         brand: r.devices?.brand,
         reservedUntil: formatDate(r.reserved_until),
         daysLeft,

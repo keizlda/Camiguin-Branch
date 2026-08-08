@@ -94,7 +94,6 @@ function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selected
               <th className="pb-2 font-medium">Device</th>
               <th className="pb-2 font-medium">Category</th>
               <th className="pb-2 font-medium">Storage</th>
-              <th className="pb-2 font-medium">Color</th>
               <th className="pb-2 font-medium">Status</th>
               <th className="pb-2 font-medium">Date Added</th>
               <th className="pb-2 font-medium text-right">Actions</th>
@@ -103,7 +102,7 @@ function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selected
           <tbody>
             {paginated.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-8 text-center text-gray-400">
+                <td colSpan={8} className="py-8 text-center text-gray-400">
                   No devices found.
                 </td>
               </tr>
@@ -153,7 +152,6 @@ function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selected
                         </div>
                       </td>
                       <td className="py-3 text-gray-600">{first.category}</td>
-                      <td className="py-3 text-gray-300">—</td>
                       <td className="py-3 text-gray-300">—</td>
                       <td className="py-3">
                         <div className="flex flex-wrap gap-1">
@@ -212,7 +210,6 @@ function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selected
                     </td>
                     <td className="py-3 text-gray-600">{row.category}</td>
                     <td className={`py-3 ${row.storage ? "text-gray-600" : "text-gray-300"}`}>{row.storage || "—"}</td>
-                    <td className={`py-3 ${row.color ? "text-gray-600" : "text-gray-300"}`}>{row.color || "—"}</td>
                     <td className="py-3">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusStyles[row.status]}`}>
                         {row.status}

@@ -104,7 +104,7 @@ function ReplaceReturnModal({ record, onClose, onReplaced }) {
               <option value="">Select a unit</option>
               {candidates.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.batchCode} — {c.storage} · {c.color}
+                  {c.batchCode} — {c.storage}
                 </option>
               ))}
               <option value={OTHER_UNIT}>Other unit (different model)</option>
@@ -126,7 +126,7 @@ function ReplaceReturnModal({ record, onClose, onReplaced }) {
                   <div>
                     <p className="text-sm font-medium text-gray-800">{selectedOtherDevice.product}</p>
                     <p className="text-xs text-gray-500">
-                      {selectedOtherDevice.batchCode} · {selectedOtherDevice.storage} · {selectedOtherDevice.color} · ₱
+                      {selectedOtherDevice.batchCode} · {selectedOtherDevice.storage} · ₱
                       {selectedOtherDevice.price.toLocaleString()}
                     </p>
                   </div>
@@ -158,7 +158,7 @@ function ReplaceReturnModal({ record, onClose, onReplaced }) {
                         >
                           <p className="text-sm text-gray-800">{d.product}</p>
                           <p className="text-xs text-gray-400">
-                            {d.batchCode} · {d.storage} · {d.color} · ₱{d.price.toLocaleString()}
+                            {d.batchCode} · {d.storage} · ₱{d.price.toLocaleString()}
                           </p>
                         </button>
                       ))

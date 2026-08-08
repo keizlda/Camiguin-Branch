@@ -31,7 +31,6 @@ function RecentActivityTable() {
               <th className="pb-2 font-medium">Batch Code</th>
               <th className="pb-2 font-medium">Device</th>
               <th className="pb-2 font-medium">Storage</th>
-              <th className="pb-2 font-medium">Color</th>
               <th className="pb-2 font-medium">Status</th>
               <th className="pb-2 font-medium">Customer</th>
               <th className="pb-2 font-medium">Time</th>
@@ -43,7 +42,6 @@ function RecentActivityTable() {
                 <td className="py-3 text-gray-600">{row.batchCode}</td>
                 <td className="py-3 text-gray-800 font-medium">{row.device}</td>
                 <td className="py-3 text-gray-600">{row.storage}</td>
-                <td className="py-3 text-gray-600">{row.color}</td>
                 <td className="py-3">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusStyles[row.status]}`}>
                     {row.status}

@@ -133,7 +133,6 @@ function Reports() {
         paymentStatus: s.paymentStatus,
         device: s.device,
         storage: s.storage,
-        color: s.color,
         items: 1,
         amount: s.total,
         netProfit: s.netProfit,
@@ -437,7 +436,7 @@ function Reports() {
                     <td className="px-3 py-3 text-gray-700">{row.txn}</td>
                     <td className="px-3 py-3 text-gray-700">{row.customer || "—"}</td>
                     <td className="px-3 py-3 text-gray-800 font-medium">
-                      {[row.device, row.storage, row.color].filter(Boolean).join(" · ")}
+                      {[row.device, row.storage].filter(Boolean).join(" · ")}
                       {isPendingBulk(row) && (
                         <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-100 text-orange-600 align-middle">
                           Bulk · Pending
