@@ -3,11 +3,28 @@ import { X, AlertTriangle } from "lucide-react";
 import { useServiceData } from "../../hooks/useServiceData";
 import { getProductCatalog } from "../../services/referenceService";
 import { createBulkOrderShell } from "../../services/bulkOrderShellsService";
+import { addDevice, getNextBatchSequence } from "../../services/inventoryService";
 import { todayLocalDateString } from "../../utils/datetime";
 import { isAccessoryLikeCategory } from "../../data/referenceData";
 import SupplierSelect from "./SupplierSelect";
 
 const OTHER_MODEL = "__other__";
+// Repair parts use a different condition vocabulary than a phone — a
+// screen or battery isn't "Pre-owned", it's either factory-sealed, a
+// genuine pulled part, or a used/aftermarket one. Mirrors AddDevice.jsx.
+const repairPartConditionOptions = ["Brand New", "Genuine", "Used"];
+
+// Batch codes follow <PREFIX>MMDDYY-### — mirrors AddDevice.jsx's own
+// generateBatchCode, duplicated here rather than shared since this modal
+// only ever needs it once, silently, at submit time (no live preview or
+// regenerate button the way Add Device's page-level form has room for).
+function batchCodeDatePrefix() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const yy = String(d.getFullYear()).slice(-2);
+  return `${mm}${dd}${yy}-`;
+}
 
 // A function (not a static object) so the modal picks up today's date each
 // time it's opened, rather than whatever date happened to be current when
@@ -19,16 +36,30 @@ function createBlankForm() {
     customModel: "",
     color: "",
     storage: "",
+    condition: "Brand New",
     supplier: "",
     quantityExpected: "",
     unitCost: "",
+    sellingPrice: "",
     dateArrived: todayLocalDateString(),
   };
 }
 
-// Quick overnight placeholder for a bulk shipment — staff log "20 iPhone 15
-// Pros arrived from iStudio" without entering a single unit, then link each
-// physical device back to this shell from Add Device the next morning.
+// Two different things happen here depending on the category:
+//
+// Serialized devices (phones etc.) get a quick overnight placeholder —
+// staff log "20 iPhone 15 Pros arrived from iStudio" without entering a
+// single unit, then link each physical device back to this shell from Add
+// Device the next morning, since each one needs its own batch code and
+// condition.
+//
+// Bulk-identical accessories/repair parts (headsets, cases) go straight
+// into inventory as Available, right here — every unit in the batch is
+// interchangeable, so there's no "enter them one by one later" step, and
+// Selling Price is asked up front instead of per-unit in Add Device (see
+// add_device's p_quantity in schema.sql). A shell still gets logged
+// underneath for Supplier Payables tracking, same as the placeholder path
+// below, just linked to every unit immediately instead of staying Pending.
 function LogShipmentArrivalModal({ onClose, onCreated }) {
   const productCatalog = useServiceData(getProductCatalog, {});
   const categories = Object.keys(productCatalog);
@@ -64,22 +95,76 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
       return;
     }
     if (!form.quantityExpected || Number(form.quantityExpected) <= 0) {
-      setError("Enter how many units are expected.");
+      setError(isRepairPart ? "Enter how many units arrived." : "Enter how many units are expected.");
+      return;
+    }
+    if (isRepairPart && !(Number(form.sellingPrice) > 0)) {
+      setError("Enter a Selling Price greater than ₱0.");
       return;
     }
     setError("");
     setSubmitting(true);
     try {
-      await createBulkOrderShell({
-        supplierName: form.supplier,
-        deviceName: resolvedModel,
-        storage: form.storage,
-        color: form.color,
-        quantityExpected: Number(form.quantityExpected),
-        unitCost: form.unitCost === "" ? null : Number(form.unitCost),
-        dateArrived: new Date(`${form.dateArrived}T00:00:00`).toISOString(),
-      });
-      onCreated();
+      if (isRepairPart) {
+        const dateArrivedIso = new Date(`${form.dateArrived}T00:00:00`).toISOString();
+
+        // Still logs a shell underneath (same as the placeholder path) so
+        // this shipment keeps showing up in Supplier Payables — it just
+        // gets linked to every unit in the same breath instead of staying
+        // Pending until someone visits Add Device. A dropped connection
+        // between this and the addDevice call below leaves an ordinary
+        // Pending shell with nothing linked yet, the same recoverable state
+        // the placeholder path already produces — not a stuck half-done sale.
+        const shellId = await createBulkOrderShell({
+          supplierName: form.supplier,
+          deviceName: resolvedModel,
+          storage: null,
+          color: null,
+          quantityExpected: Number(form.quantityExpected),
+          unitCost: form.unitCost === "" ? null : Number(form.unitCost),
+          dateArrived: dateArrivedIso,
+        });
+
+        const prefix = `${catalog.prefix}${batchCodeDatePrefix()}`;
+        const seq = await getNextBatchSequence(prefix);
+        const batchCode = `${prefix}${String(seq).padStart(3, "0")}`;
+
+        // Mirrors AddDevice.jsx's own dateAdded logic: today's arrival
+        // gets the real current timestamp, a backdated one gets that day's
+        // local midnight — dateArrived (above) is separately what the
+        // shell/device remember as when the shipment physically showed up.
+        const isToday = form.dateArrived === todayLocalDateString();
+        const dateAdded = isToday ? new Date().toISOString() : dateArrivedIso;
+
+        await addDevice({
+          batchCode,
+          deviceName: resolvedModel,
+          category: catalog.dbValue,
+          storage: null,
+          color: null,
+          status: "Available",
+          supplierName: form.supplier,
+          price: Number(form.sellingPrice),
+          purchasePrice: form.unitCost === "" ? null : Number(form.unitCost),
+          condition: form.condition,
+          dateAdded,
+          bulkOrderShellId: shellId,
+          dateArrived: dateArrivedIso,
+          quantity: Number(form.quantityExpected),
+        });
+        onCreated(batchCode);
+      } else {
+        await createBulkOrderShell({
+          supplierName: form.supplier,
+          deviceName: resolvedModel,
+          storage: form.storage,
+          color: form.color,
+          quantityExpected: Number(form.quantityExpected),
+          unitCost: form.unitCost === "" ? null : Number(form.unitCost),
+          dateArrived: new Date(`${form.dateArrived}T00:00:00`).toISOString(),
+        });
+        onCreated();
+      }
     } catch (err) {
       setError(err.message || "Failed to log shipment. Please try again.");
     } finally {
@@ -96,7 +181,9 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
           <div>
             <p className="font-semibold text-gray-800">Log Shipment Arrival</p>
             <p className="text-xs text-gray-400">
-              Record that a bulk shipment arrived — log each unit individually later via Add Device.
+              {isRepairPart
+                ? "Every unit in this batch is identical — quantity and price go in once, right here."
+                : "Record that a bulk shipment arrived — log each unit individually later via Add Device."}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
@@ -206,7 +293,7 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  Quantity Expected <span className="text-red-500">*</span>
+                  {isRepairPart ? "Quantity" : "Quantity Expected"} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -231,9 +318,47 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
                     className="w-full border border-gray-200 rounded-lg text-sm pl-7 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">What we pay the supplier per unit, for the payables total</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {isRepairPart
+                    ? "What we pay the supplier per unit — this batch's Capital."
+                    : "What we pay the supplier per unit, for the payables total"}
+                </p>
               </div>
             </div>
+
+            {isRepairPart && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                    Selling Price <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">₱</span>
+                    <input
+                      type="number"
+                      value={form.sellingPrice}
+                      onChange={(e) => update("sellingPrice", e.target.value)}
+                      placeholder="Per unit"
+                      required
+                      className="w-full border border-gray-200 rounded-lg text-sm pl-7 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">Same price for every unit in this batch.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Condition</label>
+                  <select
+                    value={form.condition}
+                    onChange={(e) => update("condition", e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {repairPartConditionOptions.map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -264,7 +389,7 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
               disabled={submitting}
               className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60"
             >
-              {submitting ? "Saving..." : "Log Shipment"}
+              {submitting ? "Saving..." : isRepairPart ? "Add to Inventory" : "Log Shipment"}
             </button>
           </div>
         </form>

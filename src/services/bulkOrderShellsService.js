@@ -2,7 +2,11 @@ import { supabase } from "../lib/supabaseClient";
 
 // A shipment placeholder — logged the night a bulk shipment arrives (before
 // staff have time to enter every individual unit), then linked from Add
-// Device the next morning as each unit gets its own batch code.
+// Device the next morning as each unit gets its own batch code. Returns the
+// new shell's id — LogShipmentArrivalModal's direct-add path (bulk-identical
+// accessories) immediately links every unit it inserts back to this same
+// shell in the same submit, so the shipment still shows up for supplier
+// payables tracking even though no one visits Add Device afterward.
 export async function createBulkOrderShell({
   supplierName,
   deviceName,
@@ -24,17 +28,22 @@ export async function createBulkOrderShell({
     supplierId = supplier.id;
   }
 
-  const { error } = await supabase.from("bulk_order_shells").insert({
-    supplier_id: supplierId,
-    device_name: deviceName,
-    storage: storage || null,
-    color: color || null,
-    quantity_expected: quantityExpected,
-    unit_cost: unitCost ?? null,
-    date_arrived: dateArrived,
-    notes: notes || null,
-  });
+  const { data, error } = await supabase
+    .from("bulk_order_shells")
+    .insert({
+      supplier_id: supplierId,
+      device_name: deviceName,
+      storage: storage || null,
+      color: color || null,
+      quantity_expected: quantityExpected,
+      unit_cost: unitCost ?? null,
+      date_arrived: dateArrived,
+      notes: notes || null,
+    })
+    .select("id")
+    .single();
   if (error) throw error;
+  return data.id;
 }
 
 function mapShellProgress(s) {

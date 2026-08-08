@@ -101,11 +101,20 @@ function AllDevices() {
     setPrintDevices(allDevices.filter((d) => selectedIds.has(d.id)));
   };
 
-  const handleShipmentLogged = () => {
+  // batchCode is only passed for the direct-add path (bulk-identical
+  // accessories/repair parts) — see LogShipmentArrivalModal.jsx. Its
+  // absence means a placeholder shell was logged instead, the way a
+  // serialized-device shipment still works.
+  const handleShipmentLogged = (batchCode) => {
     setShowLogShipment(false);
+    loadDevices();
     loadPendingShells();
     loadAllShells();
-    showToast("Shipment logged. Link each unit to it from Add Device as they're entered.");
+    showToast(
+      batchCode
+        ? `Added to inventory as ${batchCode} — ready to sell. Select it here to print a label.`
+        : "Shipment logged. Link each unit to it from Add Device as they're entered."
+    );
   };
 
   const handleEditSaved = () => {
