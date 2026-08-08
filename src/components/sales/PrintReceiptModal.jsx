@@ -1,116 +1,43 @@
+import { useMemo } from "react";
 import { X, Printer } from "lucide-react";
-import { formatDate, formatTime } from "../../utils/datetime";
-import Barcode from "../common/Barcode";
+import { getPrintPlatform } from "../../utils/platform";
+import ReceiptBodyAndroid from "./receiptBodies/ReceiptBodyAndroid";
+import ReceiptBodyMac from "./receiptBodies/ReceiptBodyMac";
+import ReceiptBodyWindows from "./receiptBodies/ReceiptBodyWindows";
 
-const STORE_ADDRESS = ["Balintawak, Mambajao,", "Camiguin 911"];
-const STORE_PHONE = "0916 245 6667";
-const RETURN_POLICY = "No returns after 7 days.";
-
-// A real Android-tablet print showed every ₱ sign missing — that print
-// path's font apparently doesn't carry the peso glyph and just drops it,
-// even though the same "₱" prints fine through the desktop/thermal-driver
-// path. "P" is plain ASCII, safe on any printer's built-in font regardless
-// of Unicode support.
-const peso = (n) => "P" + (Number(n) || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-// That same real print also showed every label/value row (Subtotal,
-// TOTAL, item prices) collapsed into plain concatenated text with a
-// single space between them instead of spread label-left/value-right —
-// exactly what happens when a print path extracts plain text from the
-// page instead of rendering it visually, discarding flexbox (and any
-// other CSS layout) entirely. Building these rows as one manually
-// space-padded monospace string instead survives that: the alignment
-// IS the text content, not a layout effect a stripped-CSS print path can
-// undo. Kept as a single text node (not separate label/value elements)
-// so a plain-text extractor can't insert its own extra space between
-// them the way it did with the old two-span flex row.
-//
-// Staff were manually setting the print dialog's Scale to 110% every
-// sale to get large-enough text — not something everyone will remember
-// every time, and it was pushing the receipt past its fixed page height
-// into a wasteful second page. RECEIPT_FONT_PX bakes that size in
-// directly instead (see the container's own font-size below, which
-// should match this), so 20 characters is what actually fits the 46mm
-// print area at that size (46mm ≈ 174px at the CSS-standard 96dpi
-// reference pixel; Courier's advance width is ~0.6em/character) — down
-// from a wider budget at the smaller pre-scale font. Tighter, so more
-// rows fall back to wrapping onto their own line below (next), which is
-// an accepted tradeoff for bigger, more legible text on a narrow roll —
-// both figures are provisional pending a real test print, like every
-// other physical measurement in this file.
-// white-space: pre-wrap preserves the padding (unlike normal, which
-// collapses repeated spaces) while still wrapping instead of overflowing
-// horizontally if a line ends up longer than expected.
-const RECEIPT_FONT_PX = 14;
-const RECEIPT_CHARS = 20;
-
-function padLine(left, right) {
-  const gap = RECEIPT_CHARS - left.length - right.length;
-  if (gap < 1) {
-    // Doesn't fit on one line — value goes on its own line instead of
-    // running off the page, same reason flex-wrap existed before.
-    return `${left}\n${right.padStart(RECEIPT_CHARS)}`;
-  }
-  return `${left}${" ".repeat(gap)}${right}`;
-}
-
-function Row({ label, value }) {
-  return (
-    <div style={{ whiteSpace: "pre-wrap" }}>
-      {padLine(label, value)}
-    </div>
-  );
-}
-
-// Not a stored/sequential invoice number — this app's sales are identified
-// by UUID, not a counter. Derived entirely from real fields (the sale's own
-// date + a slice of its real id) purely for a shorter, receipt-friendly
-// reference, not a fabricated fact.
-//
-// label (shown as text) and barcodeValue (what's actually encoded) are
-// deliberately different lengths: a receipt's printable width is much
-// narrower than a device label's. Verified by simulated decode at the
-// actual usable width of a 58mm thermal roll (the narrowest paper this
-// app supports) — a 12-character encoded value already failed there, so
-// the barcode carries an 8-character value (MMDD + 4 hex chars of the
-// real sale id) while the full "SALE-MMDDYY-XXXXXX" still prints as
-// human-readable text underneath.
-function getSaleReference(soldAt, saleId) {
-  if (!soldAt || !saleId) return null;
-  const d = new Date(soldAt);
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const yy = String(d.getFullYear()).slice(-2);
-  const fullSuffix = saleId.replace(/-/g, "").slice(-6).toUpperCase();
-  return {
-    label: `SALE-${mm}${dd}${yy}-${fullSuffix}`,
-    barcodeValue: `${mm}${dd}${fullSuffix.slice(-4)}`,
-  };
-}
+const RECEIPT_BODIES = {
+  android: ReceiptBodyAndroid,
+  mac: ReceiptBodyMac,
+  windows: ReceiptBodyWindows,
+};
 
 // receipt shape: { saleId, soldAt, customerName, customerPhone, salesperson,
 // paymentMethod, paymentStatus, orderType, referenceNumber, notes,
 // downPayment, balance, items: [{ device, storage, color, batchCode, price }] }
 //
-// The styled receipt below is shared as-is between the on-screen preview and
-// the printed page — only the surrounding modal chrome (header, backdrop,
-// Close/Print buttons) is print:hidden, restyled with print: overrides
-// rather than hidden outright, so nothing in its ancestor chain ever gets
-// display:none (which would hide the receipt content too, since it's a
-// descendant, not a sibling — see the label/receipt print bug this project
-// already hit once with a naive print:hidden wrapper).
+// The actual receipt markup lives in three separate components under
+// receiptBodies/ (Android/Mac/Windows), picked here by detected OS — not
+// one shared template with platform conditionals sprinkled through it.
+// That's deliberate: this shop's Android tablet print path extracts
+// plain text and drops non-ASCII characters and CSS layout entirely,
+// while the Mac path renders real CSS — a fix tuned for one of those
+// kept visibly degrading the other when they shared code (an Android fix
+// once shrank the font on every desktop print too; a font-size increase
+// for desktop once broke Android's character-width math). Full physical
+// separation means editing one platform's file can't touch what the
+// others print. See receiptBodies/ReceiptBodyAndroid.jsx for the
+// specific real-print bugs that shaped its differences from the other
+// two, and utils/platform.js for the detection itself.
+//
+// This shell — modal chrome, backdrop, Close/Print buttons — is shared,
+// since none of it affects what actually prints (print:hidden). Only
+// print:hidden on this wrapper (not further out) keeps the receipt
+// content — a sibling below, not a descendant — from being hidden too;
+// see the label/receipt print bug this project already hit once with a
+// naive print:hidden wrapper.
 function PrintReceiptModal({ receipt, onClose }) {
-  const subtotal = receipt.items.reduce((sum, i) => sum + (Number(i.price) || 0), 0);
-  const saleReference = getSaleReference(receipt.soldAt, receipt.saleId);
-  const hasReferenceSection =
-    (receipt.referenceNumber && receipt.referenceNumber !== "N/A") ||
-    receipt.downPayment != null ||
-    receipt.balance != null;
-  // Down Payment/Balance only get recorded for a financed sale (see
-  // FINANCING_METHODS in NewSale.jsx) — labeling the total explicitly as
-  // the device's full price avoids it reading as "amount paid today" when
-  // that's actually the down payment shown just below it.
-  const isInstallment = receipt.downPayment != null || receipt.balance != null;
+  const platform = useMemo(() => getPrintPlatform(), []);
+  const ReceiptBody = RECEIPT_BODIES[platform] || ReceiptBodyMac;
   const handlePrint = () => window.print();
 
   return (
@@ -126,110 +53,7 @@ function PrintReceiptModal({ receipt, onClose }) {
           </button>
         </div>
 
-        {/* The receipt itself — identical on screen and on paper. Fixed
-            320px width on screen (reads like a receipt in the preview).
-            Print content has repeatedly shown right-side cutoff on real
-            hardware even after narrowing to 46mm and centering, on prints
-            that vary run to run despite unchanged code — pointing at the
-            true printable area being narrower/positioned differently than
-            assumed, not something CSS alone can fully pin down blind.
-            Pushed flush left (no centering) instead of guessing another
-            centered width, so whatever margin exists is on the right,
-            away from where content has been getting cut. */}
-        <div
-          className="mx-auto w-[320px] max-w-full p-5 print:w-[46mm] print:ml-0 print:mr-auto print:p-0 text-gray-900 max-h-[65vh] overflow-y-auto print:max-h-none print:overflow-visible"
-          style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: `${RECEIPT_FONT_PX}px` }}
-        >
-          <div className="text-center">
-            <div className="w-11 h-11 rounded-full bg-gray-900 text-white flex items-center justify-center font-bold text-sm mx-auto mb-1.5">
-              MG
-            </div>
-            <p className="text-sm font-bold tracking-wide">MARK GADGETS & ACCESSORIES SHOP</p>
-            <p className="text-[11px] text-gray-500 mt-1 leading-relaxed">
-              {STORE_ADDRESS.map((line) => (
-                <span key={line}>
-                  {line}
-                  <br />
-                </span>
-              ))}
-              {STORE_PHONE}
-            </p>
-          </div>
-
-          <div className="border-t border-dashed border-gray-400 my-2.5" />
-
-          <div className="space-y-0.5">
-            <Row label="Date:" value={`${formatDate(receipt.soldAt)} ${formatTime(receipt.soldAt)}`} />
-            {receipt.customerName && <Row label="Customer:" value={receipt.customerName} />}
-            {receipt.customerPhone && <Row label="Contact:" value={receipt.customerPhone} />}
-          </div>
-
-          <div className="border-t border-dashed border-gray-400 my-2.5" />
-
-          <div>
-            {receipt.items.map((item, i) => (
-              <div key={i} className="mb-2">
-                <p className="font-bold">{item.device}</p>
-                {(item.storage || item.color) && (
-                  <p className="text-gray-500">{[item.storage, item.color].filter(Boolean).join(" · ")}</p>
-                )}
-                {item.batchCode && <p className="text-gray-500">Batch: {item.batchCode}</p>}
-                {/* Every unit here is a serialized device — qty is always
-                    exactly 1, so a separate "1 x price" alongside the same
-                    price again as a line total was always showing the same
-                    number twice. One value, right-aligned when CSS is
-                    honored (text-right), still perfectly readable flush
-                    left on a print path that strips CSS instead — unlike a
-                    label/value pair, a single number is never ambiguous
-                    either way. */}
-                <p className="mt-0.5 text-right">{peso(item.price)}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t border-dashed border-gray-400 my-2.5" />
-
-          <div className="space-y-0.5">
-            <div style={{ whiteSpace: "pre-wrap" }}>{padLine("Subtotal", peso(subtotal))}</div>
-            <div className="font-bold text-base border-t border-gray-900 pt-1.5 mt-1" style={{ whiteSpace: "pre-wrap" }}>
-              {padLine(isInstallment ? "DEVICE TOTAL" : "TOTAL", peso(subtotal))}
-            </div>
-          </div>
-
-          {hasReferenceSection && (
-            <>
-              <div className="border-t border-dashed border-gray-400 my-2.5" />
-              <div className="space-y-0.5">
-                {receipt.referenceNumber && receipt.referenceNumber !== "N/A" && (
-                  <Row label="Reference #:" value={receipt.referenceNumber} />
-                )}
-                {receipt.downPayment != null && <Row label="Down Payment:" value={peso(receipt.downPayment)} />}
-                {receipt.balance != null && <Row label="Balance:" value={peso(receipt.balance)} />}
-              </div>
-            </>
-          )}
-
-          {saleReference && (
-            <>
-              <div className="border-t border-dashed border-gray-400 my-2.5" />
-              <div className="text-center">
-                <Barcode value={saleReference.barcodeValue} height={30} className="mx-auto max-w-full h-auto" />
-                <p className="text-[10px] tracking-widest mt-0.5">{saleReference.label}</p>
-              </div>
-            </>
-          )}
-
-          <p className="text-center font-bold mt-2.5">Thank you and God Bless</p>
-          <p className="text-center text-[11px] text-gray-500 mt-3 leading-relaxed">
-            {RETURN_POLICY}
-            <br />
-            Please keep this receipt for warranty and return purposes.
-            <br />
-            &copy; 2019 MARK Gadgets & Accessories Shop. All rights reserved.
-          </p>
-
-          {receipt.notes && <p className="text-[11px] text-gray-500 mt-2 pt-2 border-t border-dashed border-gray-400">{receipt.notes}</p>}
-        </div>
+        <ReceiptBody receipt={receipt} />
 
         <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 print:hidden">
           <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
