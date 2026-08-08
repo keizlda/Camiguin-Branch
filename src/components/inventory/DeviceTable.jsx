@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Smartphone, Tablet, Watch, Laptop, Headphones, Wrench, MoreVertical, Eye, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import { useIsAdmin } from "../../hooks/useIsAdmin";
+import AccessoryBatchModal from "./AccessoryBatchModal";
 
 const statusStyles = {
   Sold: "bg-blue-100 text-blue-600",
@@ -20,13 +21,39 @@ const categoryIcon = {
   "Repair Parts": Wrench,
 };
 
+// Bulk-identical accessories share one batch code across every unit in a
+// batch (see add_device's p_quantity in schema.sql) — a plain unique
+// batch_code is only enforced for serialized devices (see
+// devices_batch_code_unique_serialized), so a shared code here always means
+// an accessory batch, never a coincidence. Collapsing those into one row
+// (instead of listing 63 identical-looking earphones one after another)
+// keeps the list readable; the batch code becomes a button that opens
+// AccessoryBatchModal for the individual units behind it.
+function groupByBatchCode(devices) {
+  const order = [];
+  const byBatch = new Map();
+  for (const d of devices) {
+    if (!byBatch.has(d.batchCode)) {
+      byBatch.set(d.batchCode, []);
+      order.push(d.batchCode);
+    }
+    byBatch.get(d.batchCode).push(d);
+  }
+  return order.map((code) => {
+    const units = byBatch.get(code);
+    return units.length === 1 ? { type: "single", device: units[0] } : { type: "group", batchCode: code, units };
+  });
+}
+
 function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selectedIds, onToggleSelect, onToggleSelectAll }) {
   const isAdmin = useIsAdmin();
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [openMenu, setOpenMenu] = useState(null);
+  const [viewingBatch, setViewingBatch] = useState(null);
 
-  const totalPages = Math.max(1, Math.ceil(devices.length / perPage));
+  const displayRows = useMemo(() => groupByBatchCode(devices), [devices]);
+  const totalPages = Math.max(1, Math.ceil(displayRows.length / perPage));
 
   // A new filter can shrink `devices` enough that whatever page the user
   // was already on no longer exists — without this, the table silently
@@ -37,12 +64,15 @@ function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selected
   }, [totalPages, page]);
 
   const start = (page - 1) * perPage;
-  const paginated = devices.slice(start, start + perPage);
+  const paginated = displayRows.slice(start, start + perPage);
 
   // Selecting "all" selects every device matching the current filters, not
   // just what's visible on this page — so a filter-then-select-all-then-
   // print workflow (e.g. "everything added today") covers the whole result
-  // set, not just whichever page happens to be showing.
+  // set, not just whichever page happens to be showing. Deliberately over
+  // the raw devices list, not displayRows — a collapsed accessory row still
+  // needs every one of its underlying units selected, not just its one
+  // display row.
   const allSelected = devices.length > 0 && devices.every((d) => selectedIds.has(d.id));
 
   return (
@@ -78,10 +108,87 @@ function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selected
                 </td>
               </tr>
             ) : (
-              paginated.map((row, index) => {
+              paginated.map((entry, index) => {
+                if (entry.type === "group") {
+                  const { batchCode, units } = entry;
+                  const first = units[0];
+                  const Icon = categoryIcon[first.category] || Smartphone;
+                  const groupSelected = units.every((u) => selectedIds.has(u.id));
+                  const statusCounts = units.reduce((acc, u) => {
+                    acc[u.status] = (acc[u.status] || 0) + 1;
+                    return acc;
+                  }, {});
+                  return (
+                    <tr key={batchCode} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="py-3">
+                        <input
+                          type="checkbox"
+                          checked={groupSelected}
+                          onChange={() => onToggleSelectAll(units)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          aria-label={`Select all ${batchCode}`}
+                        />
+                      </td>
+                      <td className="py-3">
+                        <button
+                          onClick={() => setViewingBatch(units)}
+                          className="text-blue-600 hover:underline"
+                          title={`View all ${units.length} units on this batch code`}
+                        >
+                          {batchCode}
+                        </button>
+                      </td>
+                      <td className="py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                            <Icon size={15} className="text-gray-500" />
+                          </div>
+                          <div>
+                            <span className="text-gray-800 font-medium">{first.device}</span>
+                            <span className="ml-1.5 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
+                              ×{units.length}
+                            </span>
+                            {first.brand && <p className="text-xs text-gray-400">{first.brand}</p>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 text-gray-600">{first.category}</td>
+                      <td className="py-3 text-gray-300">—</td>
+                      <td className="py-3 text-gray-300">—</td>
+                      <td className="py-3">
+                        <div className="flex flex-wrap gap-1">
+                          {Object.entries(statusCounts).map(([status, count]) => (
+                            <span
+                              key={status}
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusStyles[status] || ""}`}
+                            >
+                              {status} ×{count}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="py-3 text-gray-500">
+                        <p>{first.dateAdded}</p>
+                        <p className="text-xs text-gray-400">{first.time}</p>
+                      </td>
+                      <td className="py-3 text-right">
+                        <button
+                          onClick={() => onPrintLabel(units)}
+                          className="text-gray-400 hover:text-gray-700 p-1"
+                          aria-label="Print Label"
+                          title="Print Label"
+                        >
+                          <Printer size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                }
+
+                const row = entry.device;
                 const Icon = categoryIcon[row.category] || Smartphone;
                 return (
-                  <tr key={index} className="border-b border-gray-50 hover:bg-gray-50">
+                  <tr key={row.id} className="border-b border-gray-50 hover:bg-gray-50">
                     <td className="py-3">
                       <input
                         type="checkbox"
@@ -121,7 +228,7 @@ function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selected
                             available to every role — not folded into the
                             admin-only kebab menu below. */}
                         <button
-                          onClick={() => onPrintLabel(row)}
+                          onClick={() => onPrintLabel([row])}
                           className="text-gray-400 hover:text-gray-700 p-1"
                           aria-label="Print Label"
                           title="Print Label"
@@ -184,7 +291,8 @@ function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selected
       {/* Pagination */}
       <div className="flex items-center justify-between mt-4 flex-wrap gap-3">
         <p className="text-xs text-gray-500">
-          Showing {devices.length === 0 ? 0 : start + 1} to {Math.min(start + perPage, devices.length)} of {devices.length} devices
+          Showing {displayRows.length === 0 ? 0 : start + 1} to {Math.min(start + perPage, displayRows.length)} of{" "}
+          {displayRows.length} rows ({devices.length} units)
         </p>
 
         <div className="flex items-center gap-3">
@@ -228,6 +336,17 @@ function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selected
           </div>
         </div>
       </div>
+
+      {viewingBatch && (
+        <AccessoryBatchModal
+          units={viewingBatch}
+          onClose={() => setViewingBatch(null)}
+          onView={(unit) => { setViewingBatch(null); onView(unit); }}
+          onEdit={(unit) => { setViewingBatch(null); onEdit(unit); }}
+          onDelete={(unit) => { setViewingBatch(null); onDelete(unit); }}
+          onPrintLabel={(units) => { setViewingBatch(null); onPrintLabel(units); }}
+        />
+      )}
     </div>
   );
 }

@@ -321,7 +321,7 @@ function AllDevices() {
             onView={setViewDevice}
             onEdit={setEditDevice}
             onDelete={handleDelete}
-            onPrintLabel={(device) => setPrintDevices([device])}
+            onPrintLabel={(devices) => setPrintDevices(devices)}
             selectedIds={selectedIds}
             onToggleSelect={handleToggleSelect}
             onToggleSelectAll={handleToggleSelectAll}
