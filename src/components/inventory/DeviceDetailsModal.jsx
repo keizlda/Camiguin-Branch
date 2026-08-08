@@ -69,6 +69,7 @@ function DeviceDetailsModal({ device, paymentMethod, downPayment, balance, onClo
               <Row label="Color">{device.color || "—"}</Row>
             </>
           )}
+          {isAccessoryLikeCategory(device.category) && <Row label="Brand">{device.brand || "—"}</Row>}
           <Row label="Condition">{device.condition || "—"}</Row>
           <Row label="Supplier">{device.supplier || "—"}</Row>
           <Row label="Selling Price">₱{Number(device.price || 0).toLocaleString()}</Row>

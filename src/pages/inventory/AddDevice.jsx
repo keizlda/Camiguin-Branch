@@ -61,6 +61,7 @@ function createBlankForm() {
     customModel: "",
     color: "",
     storage: "",
+    brand: "",
     condition: "Brand New",
     supplier: "",
     dateReceived: todayLocalDateString(),
@@ -200,6 +201,7 @@ function AddDevice() {
       customModel: "",
       color: "",
       storage: "",
+      brand: "",
       quantity: "1",
       // "Brand New" is valid in both condition vocabularies, so switching
       // category never leaves a stale, now-invalid condition selected.
@@ -274,6 +276,7 @@ function AddDevice() {
         category: isOtherCategory ? resolvedCategory : catalog.dbValue,
         storage: isRepairPart ? null : form.storage,
         color: isRepairPart ? null : form.color,
+        brand: isRepairPart ? form.brand.trim() || null : null,
         status: form.status,
         supplierName: form.supplier,
         condition: form.condition,
@@ -536,6 +539,34 @@ function AddDevice() {
             {isRepairPart && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Brand <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={form.brand}
+                    onChange={(e) => update("brand", e.target.value)}
+                    placeholder="e.g. Anker"
+                    className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => update("brand", "Various")}
+                    title="This batch has mixed brands"
+                    className="flex-shrink-0 px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  >
+                    Various
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Which brand this batch is — click Various if it's a mixed-brand box, not one single brand.
+                </p>
+              </div>
+            )}
+
+            {isRepairPart && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
                   Quantity <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -727,6 +758,7 @@ function AddDevice() {
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-800">{resolvedModel || "—"}</p>
+              {isRepairPart && form.brand && <p className="text-xs text-gray-500">{form.brand}</p>}
               {!isRepairPart && (
                 <>
                   <p className="text-xs text-gray-500">{form.storage || "—"}</p>
@@ -745,6 +777,12 @@ function AddDevice() {
               <span className="text-gray-400">Model</span>
               <span className="text-gray-700">{resolvedModel || "—"}</span>
             </div>
+            {isRepairPart && (
+              <div className="flex justify-between">
+                <span className="text-gray-400">Brand</span>
+                <span className="text-gray-700">{form.brand || "—"}</span>
+              </div>
+            )}
             {isRepairPart && (
               <div className="flex justify-between">
                 <span className="text-gray-400">Quantity</span>

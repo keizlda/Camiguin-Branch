@@ -3,7 +3,7 @@ import { formatDate, formatTime } from "../utils/datetime";
 import { expireOverdueReservations } from "./reservationsService";
 
 const DEVICE_SELECT =
-  "id, batch_code, device_name, category, storage, color, status, supplier_id, purchase_price, selling_price, condition, notes, date_added, bulk_order_shell_id, date_arrived, suppliers:supplier_id ( name )";
+  "id, batch_code, device_name, category, storage, color, brand, status, supplier_id, purchase_price, selling_price, condition, notes, date_added, bulk_order_shell_id, date_arrived, suppliers:supplier_id ( name )";
 
 function mapDevice(d) {
   return {
@@ -13,6 +13,7 @@ function mapDevice(d) {
     category: d.category,
     storage: d.storage,
     color: d.color,
+    brand: d.brand,
     status: d.status,
     supplier: d.suppliers?.name,
     purchasePrice: d.purchase_price,
@@ -68,6 +69,7 @@ export async function updateDevice(id, device) {
     p_issue_description: device.issueDescription || null,
     p_purchase_price: device.purchasePrice ?? null,
     p_condition: device.condition || null,
+    p_brand: device.brand || null,
   });
   if (error) throw error;
 }
@@ -169,6 +171,7 @@ export async function addDevice(device) {
     p_purchase_price: device.purchasePrice ?? null,
     p_condition: device.condition || null,
     p_quantity: device.quantity || 1,
+    p_brand: device.brand || null,
   });
 
   if (error) throw error;

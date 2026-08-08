@@ -97,7 +97,10 @@ function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selected
                         <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                           <Icon size={15} className="text-gray-500" />
                         </div>
-                        <span className="text-gray-800 font-medium">{row.device}</span>
+                        <div>
+                          <span className="text-gray-800 font-medium">{row.device}</span>
+                          {row.brand && <p className="text-xs text-gray-400">{row.brand}</p>}
+                        </div>
                       </div>
                     </td>
                     <td className="py-3 text-gray-600">{row.category}</td>

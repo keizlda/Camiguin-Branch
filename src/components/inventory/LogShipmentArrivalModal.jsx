@@ -36,6 +36,7 @@ function createBlankForm() {
     customModel: "",
     color: "",
     storage: "",
+    brand: "",
     condition: "Brand New",
     supplier: "",
     quantityExpected: "",
@@ -142,6 +143,7 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
           category: catalog.dbValue,
           storage: null,
           color: null,
+          brand: form.brand.trim() || null,
           status: "Available",
           supplierName: form.supplier,
           price: Number(form.sellingPrice),
@@ -325,6 +327,34 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
                 </p>
               </div>
             </div>
+
+            {isRepairPart && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                  Brand <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={form.brand}
+                    onChange={(e) => update("brand", e.target.value)}
+                    placeholder="e.g. Anker"
+                    className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => update("brand", "Various")}
+                    title="This batch has mixed brands"
+                    className="flex-shrink-0 px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  >
+                    Various
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  Click Various if this shipment is a mixed-brand box, not one single brand.
+                </p>
+              </div>
+            )}
 
             {isRepairPart && (
               <div className="grid grid-cols-2 gap-3">

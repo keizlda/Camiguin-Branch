@@ -12,6 +12,7 @@ import { useIsAdmin } from "../hooks/useIsAdmin";
 import { getAllDevices, getLowStockItems } from "../services/inventoryService";
 import { getSalesHistory } from "../services/salesService";
 import { getDeviceCategories } from "../services/referenceService";
+import { isAccessoryLikeCategory } from "../data/referenceData";
 
 const categoryColors = {
   iPhones: "#3b82f6",
@@ -57,12 +58,19 @@ function Dashboard() {
 
   const todayStr = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
+  // Accessories/Repair Parts are bulk stock (a batch can be dozens of
+  // identical units sharing one batch code, see add_device's p_quantity in
+  // schema.sql) — counting them alongside serialized devices here would
+  // make "Available"/"Supplier Defective"/"Returned" swing on accessory
+  // restocks instead of reflecting actual device inventory.
+  const deviceOnlyUnits = allDevices.filter((d) => !isAccessoryLikeCategory(d.category));
+
   const statCards = [
-    { label: "Available", value: allDevices.filter((d) => d.status === "Available").length, unit: "Units", color: "green" },
+    { label: "Available", value: deviceOnlyUnits.filter((d) => d.status === "Available").length, unit: "Units", color: "green" },
     { label: "Sold Today", value: salesHistory.filter((s) => s.date === todayStr).length, unit: "Units", color: "blue" },
     { label: "Low Stock", value: lowStockItems.length, unit: "Models", color: "orange" },
-    { label: "Supplier Defective", value: allDevices.filter((d) => d.status === "Supplier Defective").length, unit: "Units", color: "red" },
-    { label: "Returned", value: allDevices.filter((d) => d.status === "Returned" || d.status === "Customer Returned").length, unit: "Units", color: "purple" },
+    { label: "Supplier Defective", value: deviceOnlyUnits.filter((d) => d.status === "Supplier Defective").length, unit: "Units", color: "red" },
+    { label: "Returned", value: deviceOnlyUnits.filter((d) => d.status === "Returned" || d.status === "Customer Returned").length, unit: "Units", color: "purple" },
   ];
 
   // Current on-hand stock, not all-time device volume — a Sold unit isn't

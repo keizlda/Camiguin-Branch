@@ -20,6 +20,7 @@ import {
   getAllShellsWithProgress,
   deleteBulkOrderShell,
 } from "../../services/bulkOrderShellsService";
+import { isAccessoryLikeCategory } from "../../data/referenceData";
 import { useToast } from "../../hooks/useToast";
 
 function AllDevices() {
@@ -252,12 +253,20 @@ function AllDevices() {
       .sort((a, b) => new Date(b.dateArrived) - new Date(a.dateArrived));
   }, [filtered, shellsById]);
 
+  // Accessories/Repair Parts are bulk stock (a batch can be dozens of
+  // identical units sharing one batch code, see add_device's p_quantity in
+  // schema.sql) — counting them here would make "Total Devices" swing on
+  // accessory restocks instead of reflecting actual device inventory. The
+  // Devices List below still shows every row, accessories included; only
+  // this summary excludes them.
+  const deviceOnlyUnits = allDevices.filter((d) => !isAccessoryLikeCategory(d.category));
+
   const stats = {
-    total: allDevices.length,
-    available: allDevices.filter((d) => d.status === "Available").length,
-    reserved: allDevices.filter((d) => d.status === "Reserved").length,
-    defective: allDevices.filter((d) => d.status === "Supplier Defective").length,
-    returned: allDevices.filter((d) => d.status === "Returned" || d.status === "Customer Returned").length,
+    total: deviceOnlyUnits.length,
+    available: deviceOnlyUnits.filter((d) => d.status === "Available").length,
+    reserved: deviceOnlyUnits.filter((d) => d.status === "Reserved").length,
+    defective: deviceOnlyUnits.filter((d) => d.status === "Supplier Defective").length,
+    returned: deviceOnlyUnits.filter((d) => d.status === "Returned" || d.status === "Customer Returned").length,
     lowStock: lowStockItems.length,
   };
 

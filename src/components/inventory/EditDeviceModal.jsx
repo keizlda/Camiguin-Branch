@@ -29,6 +29,7 @@ function EditDeviceModal({ device, onClose, onSaved }) {
     category: device.category || "",
     storage: device.storage || "",
     color: device.color || "",
+    brand: device.brand || "",
     status: device.status,
     condition: device.condition || "",
     supplierName: device.supplier || "",
@@ -66,6 +67,7 @@ function EditDeviceModal({ device, onClose, onSaved }) {
         category: form.category,
         storage: isRepairPart ? null : form.storage.trim(),
         color: isRepairPart ? null : form.color.trim(),
+        brand: isRepairPart ? form.brand.trim() || null : null,
         status: form.status,
         supplierName: form.supplierName,
         condition: form.condition || null,
@@ -162,6 +164,29 @@ function EditDeviceModal({ device, onClose, onSaved }) {
                   onChange={(e) => update("color", e.target.value)}
                   className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+            </div>
+          )}
+
+          {isRepairPart && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Brand</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={form.brand}
+                  onChange={(e) => update("brand", e.target.value)}
+                  placeholder="e.g. Anker"
+                  className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => update("brand", "Various")}
+                  title="This batch has mixed brands"
+                  className="flex-shrink-0 px-3 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+                >
+                  Various
+                </button>
               </div>
             </div>
           )}

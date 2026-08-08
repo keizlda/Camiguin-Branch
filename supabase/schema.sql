@@ -99,6 +99,14 @@ create table public.devices (
   category text not null,
   storage text,
   color text,
+  -- Only meaningful for Accessories/Repair Parts — those categories are
+  -- generic ("Accessories") but hold many different real-world brands
+  -- (Anker vs a no-name power bank), unlike phone categories which are
+  -- already brand-named categories themselves (Samsung, Redmi, ...) and
+  -- so have no separate use for this. Free text, not a catalog/dropdown —
+  -- "Various" is a plain typed value for a mixed-brand batch, not a
+  -- special case the schema enforces.
+  brand text,
   status text not null default 'Available'
     check (status in ('Available', 'Reserved', 'Sold', 'Customer Returned', 'Supplier Defective', 'Returned')),
   supplier_id uuid references public.suppliers (id),
@@ -811,10 +819,10 @@ $$;
 -- for the "Print Label" prompt after saving, since the whole batch prints
 -- as a single shared label, not one per unit.
 --
--- Signature changed (added p_quantity) from the version this replaced —
+-- Signature changed (added p_brand) from the version this replaced —
 -- create or replace doesn't swap in a changed parameter list, it adds a
 -- second overload, so the old signature is dropped first.
-drop function if exists public.add_device(text, text, text, text, text, text, text, numeric, text, timestamptz, text, uuid, timestamptz, numeric, text);
+drop function if exists public.add_device(text, text, text, text, text, text, text, numeric, text, timestamptz, text, uuid, timestamptz, numeric, text, int);
 
 create function public.add_device(
   p_batch_code text,
@@ -832,7 +840,8 @@ create function public.add_device(
   p_date_arrived timestamptz default null,
   p_purchase_price numeric default null,
   p_condition text default null,
-  p_quantity int default 1
+  p_quantity int default 1,
+  p_brand text default null
 )
 returns uuid
 language plpgsql
@@ -854,8 +863,8 @@ begin
   end if;
 
   for v_i in 1..greatest(p_quantity, 1) loop
-    insert into public.devices (batch_code, device_name, category, storage, color, status, supplier_id, selling_price, purchase_price, condition, notes, date_added, bulk_order_shell_id, date_arrived)
-    values (p_batch_code, p_device_name, p_category, p_storage, p_color, p_status, v_supplier_id, p_price, p_purchase_price, p_condition, p_notes, p_date_added, p_bulk_order_shell_id, p_date_arrived)
+    insert into public.devices (batch_code, device_name, category, storage, color, brand, status, supplier_id, selling_price, purchase_price, condition, notes, date_added, bulk_order_shell_id, date_arrived)
+    values (p_batch_code, p_device_name, p_category, p_storage, p_color, p_brand, p_status, v_supplier_id, p_price, p_purchase_price, p_condition, p_notes, p_date_added, p_bulk_order_shell_id, p_date_arrived)
     returning id into v_device_id;
 
     if v_first_device_id is null then
@@ -884,6 +893,12 @@ $$;
 -- Edit Device flow. Checks the device's OWN previous status server-side
 -- (not a value handed in by the client) so it only creates a record on a
 -- genuine transition into Supplier Defective.
+--
+-- Signature changed (added p_brand) from the version this replaced —
+-- create or replace doesn't swap in a changed parameter list, it adds a
+-- second overload, so the old signature is dropped first.
+drop function if exists public.update_device(uuid, text, text, text, text, text, text, text, numeric, text, text, numeric, text);
+
 create function public.update_device(
   p_id uuid,
   p_batch_code text,
@@ -897,7 +912,8 @@ create function public.update_device(
   p_notes text,
   p_issue_description text default null,
   p_purchase_price numeric default null,
-  p_condition text default null
+  p_condition text default null,
+  p_brand text default null
 )
 returns void
 language plpgsql
@@ -923,6 +939,7 @@ begin
       category = p_category,
       storage = p_storage,
       color = p_color,
+      brand = p_brand,
       status = p_status,
       supplier_id = v_supplier_id,
       selling_price = p_price,
