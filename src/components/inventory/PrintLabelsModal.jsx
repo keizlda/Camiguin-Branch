@@ -1,41 +1,25 @@
 import { X, Printer } from "lucide-react";
-import Barcode from "../common/Barcode";
+import { dedupeByBatchCode } from "../../utils/dedupeByBatchCode";
+import BarcodeSheetTable from "../common/BarcodeSheetTable";
 
-// Prints one label per device — a single unit (from Add Device right after
-// saving, or All Devices' row action) or a whole batch (checked rows on
-// All Devices). Same dedicated-print-stylesheet + window.print() pattern as
-// Reports/Financial's "Print Report": the on-screen preview here is
-// print:hidden, and the actual label grid (.label-sheet, styled in
-// index.css) is hidden on screen and only shown when printing.
-// Matches the 6 columns x 11 rows grid in index.css's .label-sheet.
-const LABELS_PER_PAGE = 66;
-
-// Bulk-added accessories (headsets, cases) share one batch_code across every
-// unit in the batch — see add_device's p_quantity in schema.sql. They're
-// interchangeable, so printing one label per row would print the same
-// barcode 20 times for a batch of 20. Collapsing by batchCode here means
-// serialized devices (always a unique code per row) are unaffected, while a
-// shared-code batch — whatever its size — prints as a single label.
-function dedupeByBatchCode(devices) {
-  const map = new Map();
-  for (const d of devices) {
-    const existing = map.get(d.batchCode);
-    if (existing) existing.count += 1;
-    else map.set(d.batchCode, { ...d, count: 1 });
-  }
-  return [...map.values()];
-}
-
+// Prints one reference-sheet row per device — a single unit (from Add
+// Device right after saving, or All Devices' row action) or a whole batch
+// (checked rows on All Devices) — on the same BarcodeSheetTable as Print
+// Reference Sheet (PrintBarcodeSheetModal.jsx), so the two only differ in
+// which devices get handed in (this one is always an explicit selection,
+// not "every filtered device"). Used to print small adhesive stick-on
+// labels sized for a specialty A4 label sheet; everything now prints on
+// plain bondpaper instead.
 function PrintLabelsModal({ devices, onClose }) {
   const handlePrint = () => window.print();
   const labels = dedupeByBatchCode(devices);
-  const pageCount = Math.ceil(labels.length / LABELS_PER_PAGE);
+  const pageCount = Math.ceil(labels.length / 5);
 
   return (
     <>
     {/* print:hidden lives on this wrapper, not further out — display:none
         on an ancestor hides everything inside it regardless of a
-        descendant's own print:block, so the label sheet below is a
+        descendant's own print:block, so the printable table below is a
         sibling of this whole modal, not nested inside it. */}
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 print:hidden">
       <div className="bg-white rounded-xl w-full max-w-lg shadow-xl">
@@ -53,9 +37,8 @@ function PrintLabelsModal({ devices, onClose }) {
 
         <div className="px-5 py-4 max-h-[50vh] overflow-y-auto">
           <p className="text-xs text-gray-400 mb-3">
-            Prints on a 29×21mm A4 adhesive label sheet (normal printer, not the thermal one) — 6 columns × 11
-            rows, {LABELS_PER_PAGE} labels per sheet. This batch: {labels.length} label{labels.length === 1 ? "" : "s"}{" "}
-            across {pageCount} page{pageCount === 1 ? "" : "s"}.
+            Prints a # / Code / Item / Barcode reference row per batch code on plain paper — 5 rows per page. This
+            batch: {labels.length} row{labels.length === 1 ? "" : "s"} across {pageCount} page{pageCount === 1 ? "" : "s"}.
           </p>
           <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
             {labels.map((d) => (
@@ -63,7 +46,7 @@ function PrintLabelsModal({ devices, onClose }) {
                 <p className="text-gray-800 font-medium">
                   {d.batchCode}
                   {d.count > 1 && (
-                    <span className="text-xs text-gray-400 font-normal"> · {d.count} units, 1 label</span>
+                    <span className="text-xs text-gray-400 font-normal"> · {d.count} units, 1 row</span>
                   )}
                 </p>
                 <p className="text-xs text-gray-400">{[d.device, d.storage].filter(Boolean).join(" · ")}</p>
@@ -90,20 +73,8 @@ function PrintLabelsModal({ devices, onClose }) {
     {/* Print-only — invisible on screen (this whole modal's print:hidden
         wrapper above never touches this, since it's a sibling, not a
         descendant), and this is all that shows when printing. */}
-    <div className="hidden print:block label-sheet">
-      {labels.map((d) => (
-        <div key={d.batchCode} className="label-cell">
-          {/* w-full scales to the cell's content width (29mm minus the
-              0.3mm padding on each side, index.css) — 28.4mm, still
-              comfortably above the simulated-safe 26mm+ threshold. height
-              is bar thickness, not physical size — 210 fills ~92% of the
-              cell's usable vertical room (~18.7mm of ~20.4mm) without
-              touching the cell's own 29x21mm footprint. overflow:hidden
-              on .label-cell is the safety net if real print metrics run
-              slightly larger than this estimate. */}
-          <Barcode value={d.batchCode} height={210} className="w-full h-auto" />
-        </div>
-      ))}
+    <div className="hidden print:block">
+      <BarcodeSheetTable rows={labels} />
     </div>
     </>
   );

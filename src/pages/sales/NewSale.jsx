@@ -144,6 +144,16 @@ function NewSale() {
   // fill-in — staff scanning units at the counter want the unit added, not
   // an extra step of finding it in the results and clicking Plus again.
   //
+  // Deliberately doesn't close the scan modal — ringing up several units
+  // is the normal case here, not a one-off lookup (see SalesHistory.jsx's/
+  // FilterBar.jsx's own onScanned for the single-field-fill version that
+  // does close after one scan). Leaving it open also means "My Phone" mode
+  // keeps its Realtime subscription alive across the whole sale instead of
+  // tearing it down after the first scan — closing used to unsubscribe it,
+  // so only that first scan ever reached the cart even though the phone's
+  // own camera (PhoneScan.jsx) kept scanning right past it. Staff now close
+  // it themselves once they're done scanning for this sale.
+  //
   // Bulk-identical accessories share one batch code across many units (see
   // add_device's p_quantity in schema.sql), so scanning the same physical
   // barcode is exactly how someone buying 3 of the same case would ring
@@ -152,7 +162,6 @@ function NewSale() {
   // means a second scan of the same code adds a second unit instead of
   // re-finding the one already added and refusing as a duplicate.
   const handleScanned = (value) => {
-    setShowScan(false);
     const sameCode = availableDevices.filter((p) => p.batchCode.toLowerCase() === value.toLowerCase());
     const match = sameCode.find((p) => !cartIds.has(p.id));
     if (!match) {

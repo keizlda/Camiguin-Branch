@@ -32,72 +32,64 @@
   }
 }
 
-/* Printed device labels (Add Device / All Devices "Print Label") — exact
-   spec measured directly off the real A4 adhesive label sheet (ruler
-   against the physical sheet, not guessed): 29mm x 21mm landscape
-   labels — a Code128 barcode's natural shape is already wide/short, so
-   its long axis lines up directly with the label's 29mm width, well
-   above the 26mm+ a barcode needs to stay reliably scannable (verified
-   the same way every barcode layout in this app is, before shipping:
-   jsbarcode's raw bar pattern rendered into a synthetic BitMatrix at
-   300dpi, decoded with @zxing/library) — with a 4mm gap between labels
-   both directions, and page margins of 8mm left/right, 13mm top, 12mm
-   bottom.
-   These numbers cross-check exactly against A4's fixed 210x297mm size:
-   usable width (210 - 8 - 8 = 194mm) fits 6 columns with zero slack
-   (6*29 + 5*4 = 194mm exactly), and usable height (297 - 13 - 12 =
-   272mm) fits 11 rows with 1mm to spare (11*21 + 10*4 = 271mm) — 66
-   labels per sheet, confirming these are the sheet's real manufactured
-   numbers rather than an approximation.
-   An earlier version left the 8/13/12mm margins to the browser's
-   default (or to @page's own margin property) and printed the grid
-   edge-to-edge with no gap — both wrong once measured against the real
-   sheet: real prints drifted further out of alignment with each label,
-   worse row over row, since the assumed zero gap didn't match the
-   physical 4mm one. Now .label-sheet's own padding carries the page
-   margins directly (@page's margin is set to 0 here, not left to
-   chance) so the spacing is guaranteed by ordinary content sizing
-   instead of page-level metadata a driver could ignore — same reasoning
-   as the receipt's fixed-width printable area below. For this to work,
-   the browser's print dialog needs "Margins: Default" selected (not
-   "None" or a custom value), otherwise the dialog's own margin stacks
-   on top of this padding instead of deferring to it. */
+/* Printed barcode reference table (Add Device / All Devices "Print
+   Labels" and "Print Reference Sheet", see BarcodeSheetTable.jsx) — plain
+   A4/Letter bondpaper, not the adhesive label sheet further down. Scoped
+   by .barcode-sheet so it escapes the generic Reports/Financial print
+   rule above: that one forces every th/td down to a cramped 4px/10px for
+   long data tables, which was silently squashing this table too since
+   both are plain <table> elements under the same @media print block — a
+   class-scoped selector beats that rule's bare th/td selectors even
+   though both carry !important, since specificity (not !important order)
+   decides between two matching !important declarations of otherwise
+   equal cascade origin.
+   Row height, column widths, and the serif heading font are matched by
+   eye against the shop's own sample reference sheet (five rows fill one
+   printed page there) — not ruler-verified against a real printout the
+   way the label grid below was, worth checking a real print before
+   trusting this at the edges. */
 @media print {
-  @page labelsheet {
-    size: A4 portrait;
-    margin: 0;
+  .barcode-sheet {
+    font-family: Georgia, "Times New Roman", Times, serif;
   }
 
-  .label-sheet {
-    page: labelsheet;
-    padding: 13mm 8mm 12mm 8mm;
-    display: grid;
-    grid-template-columns: repeat(6, 29mm);
-    grid-auto-rows: 21mm;
-    column-gap: 4mm;
-    row-gap: 4mm;
+  .barcode-sheet th,
+  .barcode-sheet td {
+    padding: 6px 10px !important;
+    font-size: 13px !important;
   }
 
-  .label-cell {
-    width: 29mm;
-    height: 21mm;
-    box-sizing: border-box;
-    /* Padding here only trims the barcode's own content area, not the
-       cell's outer 29x21mm footprint (box-sizing: border-box) or the
-       grid gaps between cells — kept just large enough that the barcode
-       doesn't sit flush against the cut line. */
-    padding: 0.3mm;
-    border: 1px dashed #999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
+  .barcode-sheet th:nth-child(1),
+  .barcode-sheet td:nth-child(1) {
+    width: 6%;
+  }
+  .barcode-sheet th:nth-child(2),
+  .barcode-sheet td:nth-child(2) {
+    width: 16%;
+  }
+  .barcode-sheet th:nth-child(3),
+  .barcode-sheet td:nth-child(3) {
+    width: 32%;
+  }
+  .barcode-sheet th:nth-child(4),
+  .barcode-sheet td:nth-child(4) {
+    width: 46%;
+  }
+
+  .barcode-sheet tbody tr {
+    height: 50mm;
     break-inside: avoid;
   }
 
-  /* 6 columns x 11 rows = 66 per sheet, computed above. */
-  .label-cell:nth-child(66n) {
+  /* Five rows per page, matching the sample sheet — forced rather than
+     left to whatever height the content naturally works out to, so a
+     page never ends up with a stray sixth row squeezed onto it. */
+  .barcode-sheet tbody tr:nth-child(5n) {
     break-after: page;
+  }
+
+  .barcode-sheet-img {
+    width: 60mm;
   }
 }
 

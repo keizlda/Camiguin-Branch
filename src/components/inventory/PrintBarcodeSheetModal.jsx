@@ -1,30 +1,13 @@
 import { X, Printer } from "lucide-react";
-import Barcode from "../common/Barcode";
-
-// Dedupe by batch code — a shared-code batch (bulk-identical accessories,
-// or now bulk-identical devices via the Bulk toggle, see AddDevice.jsx)
-// still only needs one reference row, not one per physical unit, same
-// reasoning as PrintLabelsModal.jsx's own dedupe.
-function dedupeByBatchCode(devices) {
-  const map = new Map();
-  for (const d of devices) {
-    if (!map.has(d.batchCode)) map.set(d.batchCode, d);
-  }
-  return [...map.values()];
-}
+import { dedupeByBatchCode } from "../../utils/dedupeByBatchCode";
+import BarcodeSheetTable from "../common/BarcodeSheetTable";
 
 // A printable # / Code / Item / Barcode table — one row per distinct batch
 // code, sorted alphabetically by item name — for a wall/binder reference
-// sheet staff can scan down to find or verify a code, distinct from
-// PrintLabelsModal's small adhesive stick-on labels. Reuses the generic
-// printed-table styling already set up for Financial/Reports' own "Print
-// Report" (see index.css's plain @media print table rule) rather than a
-// bespoke @page — an ordinary table needs nothing more specific than that.
-//
-// Barcode size here (height 50, ~40mm rendered width) is a first pass, not
-// ruler-measured against a real print the way the stick-on label grid's
-// 29x21mm spec was — worth checking a real printout before trusting it at
-// scale for a long list.
+// sheet staff can scan down to find or verify a code. Prints the same
+// BarcodeSheetTable as Print Labels (see PrintLabelsModal.jsx) — the only
+// difference between the two features is which devices get handed in
+// (this one always prints every filtered device, not just a selection).
 function PrintBarcodeSheetModal({ devices, onClose }) {
   const handlePrint = () => window.print();
   const rows = dedupeByBatchCode(devices).sort((a, b) => (a.device || "").localeCompare(b.device || ""));
@@ -51,7 +34,7 @@ function PrintBarcodeSheetModal({ devices, onClose }) {
         <div className="px-5 py-4 max-h-[50vh] overflow-y-auto">
           <p className="text-xs text-gray-400 mb-3">
             A # / Code / Item / Barcode table for a wall or binder reference — sorted alphabetically, one row per
-            batch code (not per unit). Different from Print Labels, which prints small stick-on labels instead.
+            batch code (not per unit), 5 rows per printed page.
           </p>
           {rows.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-6">Nothing matches the current filters.</p>
@@ -89,36 +72,7 @@ function PrintBarcodeSheetModal({ devices, onClose }) {
     </div>
 
     <div className="hidden print:block">
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr>
-            <th className="border border-gray-800 px-2 py-1.5 text-left font-bold w-10">#</th>
-            <th className="border border-gray-800 px-2 py-1.5 text-left font-bold">CODE</th>
-            <th className="border border-gray-800 px-2 py-1.5 text-left font-bold">ITEM</th>
-            <th className="border border-gray-800 px-2 py-1.5 text-left font-bold">BARCODE</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((d, i) => {
-            const variant = [d.brand, d.storage].filter(Boolean).join(" · ");
-            return (
-              <tr key={d.batchCode} style={{ breakInside: "avoid" }}>
-                <td className="border border-gray-800 px-2 py-3 align-top">{i + 1}</td>
-                <td className="border border-gray-800 px-2 py-3 align-top">{d.batchCode}</td>
-                <td className="border border-gray-800 px-2 py-3 align-top">
-                  <p>{d.device}</p>
-                  {variant && <p className="text-xs text-gray-500">{variant}</p>}
-                </td>
-                <td className="border border-gray-800 px-2 py-3 align-top">
-                  <div className="inline-block border border-dashed border-gray-400 px-2 py-1">
-                    <Barcode value={d.batchCode} height={50} className="w-40 h-auto" />
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <BarcodeSheetTable rows={rows} />
     </div>
     </>
   );

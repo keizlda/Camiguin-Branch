@@ -1,9 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Camera, AlertTriangle, Smartphone, Loader2, RefreshCw, Copy, Check } from "lucide-react";
+import { X, Camera, AlertTriangle, Smartphone, Loader2, RefreshCw, Copy, Check, CheckCircle2 } from "lucide-react";
 import { BrowserCodeReader } from "@zxing/browser";
 import { createBarcodeReader, SCAN_VIDEO_CONSTRAINTS } from "../../utils/barcodeScanner";
 import { supabase } from "../../lib/supabaseClient";
 import QRCode from "./QRCode";
+
+// How long a "Scanned!" confirmation stays up before the next scan (of
+// either mode) is accepted again — long enough to notice it worked, short
+// enough that ringing up several units in a row doesn't feel like waiting.
+// Mirrors PhoneScan.jsx's own CONFIRMATION_MS, which this same cooldown
+// pattern is copied from.
+const CONFIRMATION_MS = 1200;
 
 // Two ways to get a barcode into the field this modal was opened from:
 //
@@ -38,6 +45,37 @@ function ScanBarcodeModal({ onScanned, onClose }) {
   // modal — e.g. after granting a permission that was denied the first time.
   const [retryKey, setRetryKey] = useState(0);
   const [linkCopied, setLinkCopied] = useState(false);
+  // Shared between both modes — whichever last pushed a value through
+  // onScanned, shown as a brief confirmation so staff scanning several
+  // units in a row get feedback per scan instead of just a static "ready"
+  // state the whole time.
+  const [lastScan, setLastScan] = useState(null); // { value } | null
+  // A cooldown, not a one-time flag — mirrors PhoneScan.jsx: the camera
+  // keeps decoding continuously (never calls controls.stop() on a
+  // successful scan) so multiple barcodes can be scanned in one open
+  // modal instead of it dead-ending after the first, forcing the caller
+  // to close and reopen (and, in "phone" mode, rescan the QR code) just
+  // to add a second unit.
+  const cooldownRef = useRef(false);
+  const confirmationTimeoutRef = useRef(null);
+
+  const registerScan = (value) => {
+    if (cooldownRef.current) return;
+    cooldownRef.current = true;
+    onScannedRef.current(value);
+    setLastScan({ value });
+    if (confirmationTimeoutRef.current) clearTimeout(confirmationTimeoutRef.current);
+    confirmationTimeoutRef.current = setTimeout(() => {
+      cooldownRef.current = false;
+      setLastScan(null);
+    }, CONFIRMATION_MS);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (confirmationTimeoutRef.current) clearTimeout(confirmationTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (mode !== "device") return;
@@ -55,10 +93,7 @@ function ScanBarcodeModal({ onScanned, onClose }) {
         (result, err, controls) => {
           if (cancelled) return;
           controlsRef.current = controls;
-          if (result) {
-            controls.stop();
-            onScannedRef.current(result.getText());
-          }
+          if (result) registerScan(result.getText());
           // err is the expected NotFoundException on every frame that
           // doesn't contain a decodable barcode yet — not a real failure,
           // ignored.
@@ -111,13 +146,14 @@ function ScanBarcodeModal({ onScanned, onClose }) {
     const channel = supabase
       .channel(`scan-${sessionId}`)
       .on("broadcast", { event: "scanned" }, ({ payload }) => {
-        onScannedRef.current(payload.value);
+        registerScan(payload.value);
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, sessionId]);
 
   return (
@@ -169,22 +205,44 @@ function ScanBarcodeModal({ onScanned, onClose }) {
               </div>
             ) : (
               <>
-                <video ref={videoRef} className="w-full rounded-lg bg-black aspect-video object-cover" muted playsInline />
+                {/* Video feed never goes away on a successful scan — only a
+                    transient banner overlays it, same reasoning as
+                    PhoneScan.jsx's own overlay — so the modal stays ready
+                    for the next barcode instead of freezing on the first. */}
+                <div className="relative">
+                  <video ref={videoRef} className="w-full rounded-lg bg-black aspect-video object-cover" muted playsInline />
+                  {lastScan && (
+                    <div className="absolute inset-x-2 bottom-2 flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white bg-green-600/90">
+                      <CheckCircle2 size={15} />
+                      Scanned {lastScan.value}
+                    </div>
+                  )}
+                </div>
                 <p className="text-xs text-gray-400 mt-2 text-center">
-                  Point the camera at a batch code barcode — it fills in automatically once recognized.
+                  Point the camera at a batch code barcode — it fills in automatically once recognized, then keeps
+                  scanning for the next one.
                 </p>
               </>
             )
           ) : (
             <div className="text-center">
               <QRCode value={scanUrl} className="w-40 h-40 mx-auto border border-gray-100 rounded-lg" />
-              <div className="flex items-center justify-center gap-1.5 mt-3 text-sm text-gray-600">
-                <Loader2 size={14} className="animate-spin" />
-                Waiting for scan...
+              <div className="flex items-center justify-center gap-1.5 mt-3 text-sm">
+                {lastScan ? (
+                  <span className="flex items-center gap-1.5 text-green-600 font-medium">
+                    <CheckCircle2 size={14} />
+                    Scanned {lastScan.value}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-gray-600">
+                    <Loader2 size={14} className="animate-spin" />
+                    Waiting for scan...
+                  </span>
+                )}
               </div>
               <p className="text-xs text-gray-400 mt-2">
-                Scan this with your phone's camera app (not the button above — your phone's own camera), then scan
-                the barcode on the page that opens.
+                Scan this with your phone's camera app (not the button above — your phone's own camera), then keep
+                scanning barcodes on the page that opens — no need to scan this QR code again between them.
               </p>
               <button
                 onClick={handleCopyLink}
