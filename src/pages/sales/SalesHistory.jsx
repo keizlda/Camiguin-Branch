@@ -168,7 +168,12 @@ function SalesHistory() {
     try {
       const device = await getDeviceById(row.deviceId);
       setUnitInfoDevice(device);
-      setUnitInfoSale({ paymentMethod: row.payment, downPayment: row.downPayment, balance: row.balance });
+      // row.total is this sale_item's own price_at_sale (already reflects
+      // any Edit Sale correction) — device.price (devices.selling_price)
+      // never gets touched by editing a sale, so it'd show the original,
+      // possibly stale, list price instead of what this unit actually
+      // sold for. See the same reasoning in DeviceDetailsModal.jsx.
+      setUnitInfoSale({ paymentMethod: row.payment, downPayment: row.downPayment, balance: row.balance, soldPrice: row.total });
     } catch (err) {
       showToast(err.message || "Failed to load unit info. Please try again.", "error");
     }
@@ -583,6 +588,7 @@ function SalesHistory() {
           paymentMethod={unitInfoSale?.paymentMethod}
           downPayment={unitInfoSale?.downPayment}
           balance={unitInfoSale?.balance}
+          soldPrice={unitInfoSale?.soldPrice}
           onClose={() => {
             setUnitInfoDevice(null);
             setUnitInfoSale(null);

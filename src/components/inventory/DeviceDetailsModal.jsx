@@ -23,14 +23,24 @@ function Row({ label, children }) {
   );
 }
 
-// paymentMethod/downPayment/balance are optional — only passed when this is
-// opened from Sales History's "Unit Info" for a sold unit, so a financed
-// sale's (Skyro/PayJoy/Credit Card, or Home Credit on an older sale — no
-// longer offered for new ones) down payment/balance can show up here too.
-// Other call sites (Dashboard search, All Devices, Financial's
+// paymentMethod/downPayment/balance/soldPrice are optional — only passed
+// when this is opened from Sales History's "Unit Info" for a sold unit, so
+// a financed sale's (Skyro/PayJoy/Credit Card, or Home Credit on an older
+// sale — no longer offered for new ones) down payment/balance can show up
+// here too. Other call sites (Dashboard search, All Devices, Financial's
 // unsold units) view devices with no sale context, so those rows just
 // don't render.
-function DeviceDetailsModal({ device, paymentMethod, downPayment, balance, onClose }) {
+//
+// soldPrice is the sale_item's own price_at_sale, not device.price
+// (devices.selling_price) — editing a sale's Price Sold in Sales History
+// only ever updates price_at_sale (see edit_sale in schema.sql), never the
+// device's own selling_price, which is really "current asking price for
+// when it's available" and shouldn't be silently overwritten by a
+// one-off sale correction (or the wrong number would show up if the unit
+// is ever returned to stock and put up for sale again). Falling back to
+// device.price when soldPrice isn't passed keeps every non-sales-context
+// caller showing exactly what it always has.
+function DeviceDetailsModal({ device, paymentMethod, downPayment, balance, soldPrice, onClose }) {
   const showToast = useToast();
   const [saleInfo, setSaleInfo] = useState(undefined); // undefined = loading, null = never sold
 
@@ -72,7 +82,11 @@ function DeviceDetailsModal({ device, paymentMethod, downPayment, balance, onClo
           {isAccessoryLikeCategory(device.category) && <Row label="Brand">{device.brand || "—"}</Row>}
           <Row label="Condition">{device.condition || "—"}</Row>
           <Row label="Supplier">{device.supplier || "—"}</Row>
-          <Row label="Selling Price">₱{Number(device.price || 0).toLocaleString()}</Row>
+          {soldPrice != null ? (
+            <Row label="Price Sold">₱{Number(soldPrice).toLocaleString()}</Row>
+          ) : (
+            <Row label="Selling Price">₱{Number(device.price || 0).toLocaleString()}</Row>
+          )}
           {device.purchasePrice != null && (
             <Row label="Purchase Price">₱{Number(device.purchasePrice).toLocaleString()}</Row>
           )}
