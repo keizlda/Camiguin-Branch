@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Camera, AlertTriangle, Smartphone, Loader2, RefreshCw, Copy, Check } from "lucide-react";
-import { BrowserMultiFormatReader, BrowserCodeReader, BarcodeFormat } from "@zxing/browser";
+import { BrowserCodeReader } from "@zxing/browser";
+import { createBarcodeReader, SCAN_VIDEO_CONSTRAINTS } from "../../utils/barcodeScanner";
 import { supabase } from "../../lib/supabaseClient";
 import QRCode from "./QRCode";
 
@@ -42,27 +43,14 @@ function ScanBarcodeModal({ onScanned, onClose }) {
     if (mode !== "device") return;
     setDeviceError("");
     let cancelled = false;
-    // Default is a 500ms gap between decode attempts — noticeably laggy
-    // for something staff expect to feel instant. 100ms is still well
-    // above a single camera frame (~33ms at 30fps), so this isn't
-    // decoding faster than new frames actually arrive, just not sitting
-    // idle for half a second between tries.
-    const reader = new BrowserMultiFormatReader(undefined, { delayBetweenScanAttempts: 100 });
-    reader.possibleFormats = [BarcodeFormat.CODE_128];
+    // See utils/barcodeScanner.js for what's tuned here and why — capped
+    // resolution, continuous autofocus where supported, Code128-only,
+    // TRY_HARDER, and a much shorter gap between decode attempts.
+    const reader = createBarcodeReader();
 
-    // decodeFromVideoDevice(undefined, ...) requests the camera with no
-    // resolution constraint, which on most phones means the sensor's
-    // native (often very high) resolution — every decode attempt then has
-    // far more pixels to binarize/scan than a 1D barcode needs, which is
-    // most of why scanning felt slow and occasionally timed out before
-    // ever landing a read. decodeFromConstraints lets an explicit,
-    // moderate resolution be requested instead — still sharp enough to
-    // read a barcode clearly, but a much smaller frame to process each
-    // attempt. "ideal" (not "exact") lets a camera that can't hit exactly
-    // 1280x720 fall back gracefully rather than failing to open at all.
     reader
       .decodeFromConstraints(
-        { video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } },
+        SCAN_VIDEO_CONSTRAINTS,
         videoRef.current,
         (result, err, controls) => {
           if (cancelled) return;

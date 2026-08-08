@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Camera, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { BrowserMultiFormatReader, BrowserCodeReader, BarcodeFormat } from "@zxing/browser";
+import { BrowserCodeReader } from "@zxing/browser";
+import { createBarcodeReader, SCAN_VIDEO_CONSTRAINTS } from "../utils/barcodeScanner";
 import { supabase } from "../lib/supabaseClient";
 
 // Public, unauthenticated page a phone lands on after scanning the QR code
@@ -26,16 +27,12 @@ function PhoneScan() {
     if (!sessionId) return;
     let cancelled = false;
     const channel = supabase.channel(`scan-${sessionId}`);
-    // See ScanBarcodeModal.jsx for why these two differ from the library
-    // defaults — a shorter delay between decode attempts and a capped,
-    // explicit video resolution instead of the camera's native one make
-    // scanning noticeably faster and more reliable.
-    const reader = new BrowserMultiFormatReader(undefined, { delayBetweenScanAttempts: 100 });
-    reader.possibleFormats = [BarcodeFormat.CODE_128];
+    // See utils/barcodeScanner.js for what's tuned here and why.
+    const reader = createBarcodeReader();
 
     reader
       .decodeFromConstraints(
-        { video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } },
+        SCAN_VIDEO_CONSTRAINTS,
         videoRef.current,
         (result, err, controls) => {
           if (cancelled || hasScannedRef.current) return;

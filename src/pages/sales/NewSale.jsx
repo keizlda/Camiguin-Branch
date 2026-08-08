@@ -90,6 +90,9 @@ function NewSale() {
   const [forceBulk, setForceBulk] = useState(false);
   const [lastReceipt, setLastReceipt] = useState(null);
   const [showReceipt, setShowReceipt] = useState(false);
+  // batchCode -> quantity typed for a grouped (multi-unit accessory) row —
+  // keyed by batch code, not id, since a group has no single id of its own.
+  const [productQty, setProductQty] = useState({});
 
   const cartIds = useMemo(() => new Set(cart.map((c) => c.id)), [cart]);
 
@@ -102,12 +105,32 @@ function NewSale() {
     });
   }, [activeCategory, productSearch, availableDevices, cartIds]);
 
+  // Bulk-identical accessories share one batch code across every
+  // still-available unit — grouping them into one row (instead of listing
+  // the same product 60 times) is what makes "buy 3 of these" a single
+  // quantity typed once, rather than hunting the list for the same-named
+  // row over and over. Serialized devices (always a unique code) still
+  // group to exactly one unit each, so their row renders exactly as before.
+  const groupedProducts = useMemo(() => {
+    const order = [];
+    const byBatch = new Map();
+    for (const p of filteredProducts) {
+      if (!byBatch.has(p.batchCode)) {
+        byBatch.set(p.batchCode, []);
+        order.push(p.batchCode);
+      }
+      byBatch.get(p.batchCode).push(p);
+    }
+    return order.map((code) => byBatch.get(code));
+  }, [filteredProducts]);
+
   // actualPrice defaults to the catalog price but is editable per unit —
   // staff can see Capital (cost) alongside it and adjust what's actually
   // charged so the sale still profits instead of blindly using list price.
-  const addToCart = (product) => {
-    setCart((prev) => [...prev, { ...product, actualPrice: product.price }]);
+  const addUnitsToCart = (units) => {
+    setCart((prev) => [...prev, ...units.map((u) => ({ ...u, actualPrice: u.price }))]);
   };
+  const addToCart = (product) => addUnitsToCart([product]);
 
   const removeFromCart = (id) => {
     setCart((prev) => prev.filter((c) => c.id !== id));
@@ -120,15 +143,25 @@ function NewSale() {
   // Scanning is a shortcut straight to the cart, not just a search-box
   // fill-in — staff scanning units at the counter want the unit added, not
   // an extra step of finding it in the results and clicking Plus again.
+  //
+  // Bulk-identical accessories share one batch code across many units (see
+  // add_device's p_quantity in schema.sql), so scanning the same physical
+  // barcode is exactly how someone buying 3 of the same case would ring
+  // them up — once per unit, same as scanning 3 different phones. Picking
+  // the first NOT-YET-IN-CART match (not just the first match overall)
+  // means a second scan of the same code adds a second unit instead of
+  // re-finding the one already added and refusing as a duplicate.
   const handleScanned = (value) => {
     setShowScan(false);
-    const match = availableDevices.find((p) => p.batchCode.toLowerCase() === value.toLowerCase());
+    const sameCode = availableDevices.filter((p) => p.batchCode.toLowerCase() === value.toLowerCase());
+    const match = sameCode.find((p) => !cartIds.has(p.id));
     if (!match) {
-      showToast(`No available unit found for batch code "${value}".`, "error");
-      return;
-    }
-    if (cartIds.has(match.id)) {
-      showToast(`${match.batchCode} is already in the cart.`, "error");
+      showToast(
+        sameCode.length > 0
+          ? `All ${sameCode.length} available unit${sameCode.length === 1 ? "" : "s"} of ${value} are already in the cart.`
+          : `No available unit found for batch code "${value}".`,
+        "error"
+      );
       return;
     }
     addToCart(match);
@@ -453,38 +486,73 @@ function NewSale() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredProducts.length === 0 ? (
+                  {groupedProducts.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-8 text-center text-gray-400">
                         No products found.
                       </td>
                     </tr>
                   ) : (
-                    filteredProducts.map((p) => {
-                      const Icon = categoryIcon[p.category] || Smartphone;
+                    groupedProducts.map((units) => {
+                      const first = units[0];
+                      const Icon = categoryIcon[first.category] || Smartphone;
+                      // A batch of bulk-identical accessories — one row
+                      // represents every still-available unit sharing that
+                      // batch code, with a quantity to add more than one in
+                      // a single click instead of hunting the list for the
+                      // same product listed once per unit.
+                      const isBatch = units.length > 1;
+                      const qty = Math.min(Math.max(1, Number(productQty[first.batchCode]) || 1), units.length);
+                      const handleAdd = () => {
+                        addUnitsToCart(units.slice(0, qty));
+                        setProductQty((q) => ({ ...q, [first.batchCode]: "1" }));
+                      };
                       return (
-                        <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50">
+                        <tr key={first.batchCode} className="border-b border-gray-50 hover:bg-gray-50">
                           <td className="py-2.5">
                             <div className="flex items-center gap-2.5">
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${categoryColor[p.category] || "bg-gray-100 text-gray-600"}`}>
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${categoryColor[first.category] || "bg-gray-100 text-gray-600"}`}>
                                 <Icon size={15} />
                               </div>
                               <div>
-                                <p className="text-gray-800 font-medium">{p.product}</p>
-                                <p className="text-xs text-gray-400">{[p.brand, p.batchCode].filter(Boolean).join(" · ")}</p>
+                                <p className="text-gray-800 font-medium">{first.product}</p>
+                                <p className="text-xs text-gray-400">
+                                  {[first.brand, first.batchCode].filter(Boolean).join(" · ")}
+                                  {isBatch && ` · ${units.length} available`}
+                                </p>
                               </div>
                             </div>
                           </td>
-                          <td className="py-2.5 text-gray-600">{p.storage || "—"}</td>
-                          <td className="py-2.5 text-gray-600">{p.color || "—"}</td>
-                          <td className="py-2.5 text-gray-700">₱{p.price.toLocaleString()}</td>
+                          <td className="py-2.5 text-gray-600">{first.storage || "—"}</td>
+                          <td className="py-2.5 text-gray-600">{first.color || "—"}</td>
+                          <td className="py-2.5 text-gray-700">₱{first.price.toLocaleString()}</td>
                           <td className="py-2.5 text-right">
-                            <button
-                              onClick={() => addToCart(p)}
-                              className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                            >
-                              <Plus size={14} />
-                            </button>
+                            {isBatch ? (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max={units.length}
+                                  value={productQty[first.batchCode] ?? "1"}
+                                  onChange={(e) => setProductQty((q) => ({ ...q, [first.batchCode]: e.target.value }))}
+                                  className="w-14 border border-gray-200 rounded-lg text-sm px-2 py-1.5 text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                                <button
+                                  onClick={handleAdd}
+                                  title={`Add ${qty} to cart`}
+                                  className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => addToCart(first)}
+                                className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                              >
+                                <Plus size={14} />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
