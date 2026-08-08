@@ -73,6 +73,12 @@ function createBlankForm() {
     remarks: "",
     shellId: "",
     quantity: "1",
+    // Only meaningful for non-accessory categories — Accessories/Repair
+    // Parts always get the Quantity field regardless (see isRepairPart
+    // below); this is the opt-in for everything else, since most
+    // serialized-device shipments still arrive as individual units with
+    // their own condition, not a genuinely identical batch.
+    bulkMode: false,
   };
 }
 
@@ -180,11 +186,19 @@ function AddDevice() {
   // accessory-like — default to treating it as a serialized device (the
   // common case), same as every real category except the two literal ones.
   const isRepairPart = isAccessoryLikeCategory(form.category);
-  // Bulk quantity only makes sense for accessories/repair parts — a
-  // headset or screen protector batch is genuinely interchangeable unit
-  // to unit, unlike a serialized phone. Clamped to at least 1 so an
-  // emptied or invalid field can't submit a zero/negative-quantity batch.
-  const resolvedQuantity = isRepairPart ? Math.max(1, parseInt(form.quantity, 10) || 1) : 1;
+  // Accessories/Repair Parts always get bulk quantity (a headset or screen
+  // protector batch is inherently interchangeable unit to unit); any other
+  // category only does when the Bulk toggle is on — most serialized-device
+  // shipments still arrive as individual units with their own condition,
+  // not a genuinely identical batch, so this stays opt-in rather than
+  // automatic. Storage/color/condition/price still apply to the whole
+  // batch either way — a bulk entry is "N identical units of this exact
+  // variant", e.g. a Tecno Spark Go 3 64GB batch is logged separately from
+  // its 128GB batch, never combined under one code.
+  const isBulk = isRepairPart || form.bulkMode;
+  // Clamped to at least 1 so an emptied or invalid field can't submit a
+  // zero/negative-quantity batch.
+  const resolvedQuantity = isBulk ? Math.max(1, parseInt(form.quantity, 10) || 1) : 1;
   const selectedShell = pendingShells.find((s) => s.id === form.shellId);
 
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
@@ -203,6 +217,7 @@ function AddDevice() {
       storage: "",
       brand: "",
       quantity: "1",
+      bulkMode: false,
       // "Brand New" is valid in both condition vocabularies, so switching
       // category never leaves a stale, now-invalid condition selected.
       condition: "Brand New",
@@ -521,6 +536,33 @@ function AddDevice() {
               </div>
             )}
 
+            {!isRepairPart && (
+              <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5">
+                <div className="pr-3">
+                  <p className="text-sm font-medium text-gray-700">Bulk (multiple identical units)</p>
+                  <p className="text-xs text-gray-400">
+                    Turn on if this shipment is several of the exact same model/storage/color/condition — they'll
+                    share one batch code and one printed label instead of being logged one at a time. A different
+                    storage/color is always its own separate batch, toggle and all.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => update("bulkMode", !form.bulkMode)}
+                  className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${
+                    form.bulkMode ? "bg-blue-600" : "bg-gray-300"
+                  }`}
+                  title={form.bulkMode ? "Bulk — click to turn off" : "Not bulk — click to turn on"}
+                >
+                  <span
+                    className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                      form.bulkMode ? "translate-x-4" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
+
             {isRepairPart && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -549,7 +591,7 @@ function AddDevice() {
               </div>
             )}
 
-            {isRepairPart && (
+            {isBulk && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
                   Quantity <span className="text-red-500">*</span>
@@ -565,8 +607,8 @@ function AddDevice() {
                 />
                 <p className="text-xs text-gray-400 mt-1">
                   {resolvedQuantity > 1
-                    ? `Logs ${resolvedQuantity} identical units sharing one batch code and one printed label — for a batch of interchangeable stock like a box of the same case or headset.`
-                    : "More than 1 logs identical units sharing one batch code and one printed label, for interchangeable stock like a box of the same case or headset."}
+                    ? `Logs ${resolvedQuantity} identical units sharing one batch code and one printed label.`
+                    : "More than 1 logs identical units sharing one batch code and one printed label."}
                 </p>
               </div>
             )}
@@ -768,7 +810,7 @@ function AddDevice() {
                 <span className="text-gray-700">{form.brand || "—"}</span>
               </div>
             )}
-            {isRepairPart && (
+            {isBulk && (
               <div className="flex justify-between">
                 <span className="text-gray-400">Quantity</span>
                 <span className="text-gray-700">{resolvedQuantity}</span>

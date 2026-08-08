@@ -9,6 +9,7 @@ import { isAccessoryLikeCategory } from "../../data/referenceData";
 import SupplierSelect from "./SupplierSelect";
 
 const OTHER_MODEL = "__other__";
+const conditionOptions = ["Brand New", "Pre-owned"];
 // Repair parts use a different condition vocabulary than a phone — a
 // screen or battery isn't "Pre-owned", it's either factory-sealed, a
 // genuine pulled part, or a used/aftermarket one. Mirrors AddDevice.jsx.
@@ -43,24 +44,32 @@ function createBlankForm() {
     unitCost: "",
     sellingPrice: "",
     dateArrived: todayLocalDateString(),
+    // Only meaningful for non-accessory categories — Accessories/Repair
+    // Parts always go straight into inventory regardless (see isRepairPart
+    // below); this is the opt-in for everything else, since most
+    // serialized-device shipments still arrive as individual units with
+    // their own condition, not a genuinely identical batch.
+    bulkMode: false,
   };
 }
 
-// Two different things happen here depending on the category:
+// Two different things happen here, depending on category and the Bulk
+// toggle:
 //
-// Serialized devices (phones etc.) get a quick overnight placeholder —
-// staff log "20 iPhone 15 Pros arrived from iStudio" without entering a
-// single unit, then link each physical device back to this shell from Add
-// Device the next morning, since each one needs its own batch code and
-// condition.
+// The default for serialized devices (phones etc.) is a quick overnight
+// placeholder — staff log "20 iPhone 15 Pros arrived from iStudio" without
+// entering a single unit, then link each physical device back to this
+// shell from Add Device the next morning, since most shipments still
+// arrive as individual units with their own condition.
 //
-// Bulk-identical accessories/repair parts (headsets, cases) go straight
-// into inventory as Available, right here — every unit in the batch is
-// interchangeable, so there's no "enter them one by one later" step, and
-// Selling Price is asked up front instead of per-unit in Add Device (see
-// add_device's p_quantity in schema.sql). A shell still gets logged
-// underneath for Supplier Payables tracking, same as the placeholder path
-// below, just linked to every unit immediately instead of staying Pending.
+// Accessories/Repair Parts (always) or any other category with Bulk
+// switched on (a shipment that's genuinely several of the exact same
+// model/storage/color/condition) go straight into inventory as Available,
+// right here — Selling Price is asked up front instead of per-unit in Add
+// Device (see add_device's p_quantity in schema.sql). A shell still gets
+// logged underneath for Supplier Payables tracking, same as the
+// placeholder path, just linked to every unit immediately instead of
+// staying Pending.
 function LogShipmentArrivalModal({ onClose, onCreated }) {
   const productCatalog = useServiceData(getProductCatalog, {});
   const categories = Object.keys(productCatalog);
@@ -74,11 +83,12 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
   const resolvedModel = isOtherModel ? form.customModel.trim() : form.model;
   const modelColors = !isOtherModel && form.model ? catalog?.modelColors[form.model] || [] : [];
   const isRepairPart = isAccessoryLikeCategory(form.category);
+  const isBulk = isRepairPart || form.bulkMode;
 
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
 
   const handleCategoryChange = (category) => {
-    setForm((f) => ({ ...f, category, model: "", customModel: "", color: "", storage: "", supplier: "" }));
+    setForm((f) => ({ ...f, category, model: "", customModel: "", color: "", storage: "", supplier: "", bulkMode: false }));
   };
 
   const handleModelChange = (model) => {
@@ -96,18 +106,28 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
       return;
     }
     if (!form.quantityExpected || Number(form.quantityExpected) <= 0) {
-      setError(isRepairPart ? "Enter how many units arrived." : "Enter how many units are expected.");
+      setError(isBulk ? "Enter how many units arrived." : "Enter how many units are expected.");
       return;
     }
-    if (isRepairPart && !(Number(form.sellingPrice) > 0)) {
+    if (isBulk && !(Number(form.sellingPrice) > 0)) {
       setError("Enter a Selling Price greater than ₱0.");
+      return;
+    }
+    // Accessories can leave storage/color blank (there's nothing to pick,
+    // see the hidden block below) or genuinely mixed — a bulk batch of an
+    // actual device is a committed single variant, though, the same as
+    // Add Device requires for one logged individually.
+    if (isBulk && !isRepairPart && (!form.color || !form.storage)) {
+      setError("Select a Color and Storage — a bulk batch is one exact variant, e.g. logged separately from other storage sizes.");
       return;
     }
     setError("");
     setSubmitting(true);
     try {
-      if (isRepairPart) {
+      if (isBulk) {
         const dateArrivedIso = new Date(`${form.dateArrived}T00:00:00`).toISOString();
+        const storage = isRepairPart ? null : form.storage;
+        const color = isRepairPart ? null : form.color;
 
         // Still logs a shell underneath (same as the placeholder path) so
         // this shipment keeps showing up in Supplier Payables — it just
@@ -119,8 +139,8 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
         const shellId = await createBulkOrderShell({
           supplierName: form.supplier,
           deviceName: resolvedModel,
-          storage: null,
-          color: null,
+          storage,
+          color,
           quantityExpected: Number(form.quantityExpected),
           unitCost: form.unitCost === "" ? null : Number(form.unitCost),
           dateArrived: dateArrivedIso,
@@ -141,9 +161,9 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
           batchCode,
           deviceName: resolvedModel,
           category: catalog.dbValue,
-          storage: null,
-          color: null,
-          brand: form.brand.trim() || null,
+          storage,
+          color,
+          brand: isRepairPart ? form.brand.trim() || null : null,
           status: "Available",
           supplierName: form.supplier,
           price: Number(form.sellingPrice),
@@ -183,7 +203,7 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
           <div>
             <p className="font-semibold text-gray-800">Log Shipment Arrival</p>
             <p className="text-xs text-gray-400">
-              {isRepairPart
+              {isBulk
                 ? "Every unit in this batch is identical — quantity and price go in once, right here."
                 : "Record that a bulk shipment arrived — log each unit individually later via Add Device."}
             </p>
@@ -251,16 +271,50 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
             </div>
 
             {!isRepairPart && (
+              <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5">
+                <div className="pr-3">
+                  <p className="text-sm font-medium text-gray-700">Bulk (multiple identical units)</p>
+                  <p className="text-xs text-gray-400">
+                    Turn on if this shipment is several of the exact same model/storage/color/condition — they go
+                    straight into inventory sharing one batch code and one printed label, instead of a placeholder
+                    to link each unit to later. A different storage/color (e.g. 64GB vs 128GB) is always its own
+                    separate batch.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => update("bulkMode", !form.bulkMode)}
+                  className={`relative w-9 h-5 rounded-full transition-colors flex-shrink-0 ${
+                    form.bulkMode ? "bg-blue-600" : "bg-gray-300"
+                  }`}
+                  title={form.bulkMode ? "Bulk — click to turn off" : "Not bulk — click to turn on"}
+                >
+                  <span
+                    className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                      form.bulkMode ? "translate-x-4" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
+
+            {!isRepairPart && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                    Color <span className="text-gray-400 font-normal">(optional — leave blank if mixed)</span>
+                    Color{" "}
+                    {form.bulkMode ? (
+                      <span className="text-red-500">*</span>
+                    ) : (
+                      <span className="text-gray-400 font-normal">(optional — leave blank if mixed)</span>
+                    )}
                   </label>
                   {isOtherModel ? (
                     <input
                       type="text"
                       value={form.color}
                       onChange={(e) => update("color", e.target.value)}
+                      required={form.bulkMode}
                       placeholder="Enter color"
                       className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -268,24 +322,31 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
                     <select
                       value={form.color}
                       onChange={(e) => update("color", e.target.value)}
+                      required={form.bulkMode}
                       disabled={!form.model}
                       className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400"
                     >
-                      <option value="">{form.model ? "Any color" : "Select a model first"}</option>
+                      <option value="">{form.model ? (form.bulkMode ? "Select color" : "Any color") : "Select a model first"}</option>
                       {modelColors.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
                   )}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                    Storage <span className="text-gray-400 font-normal">(optional)</span>
+                    Storage{" "}
+                    {form.bulkMode ? (
+                      <span className="text-red-500">*</span>
+                    ) : (
+                      <span className="text-gray-400 font-normal">(optional)</span>
+                    )}
                   </label>
                   <select
                     value={form.storage}
                     onChange={(e) => update("storage", e.target.value)}
+                    required={form.bulkMode}
                     className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Any storage</option>
+                    <option value="">{form.bulkMode ? "Select storage" : "Any storage"}</option>
                     {catalog.storages.map((s) => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
@@ -295,7 +356,7 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">
-                  {isRepairPart ? "Quantity" : "Quantity Expected"} <span className="text-red-500">*</span>
+                  {isBulk ? "Quantity" : "Quantity Expected"} <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -321,7 +382,7 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
                   />
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                  {isRepairPart
+                  {isBulk
                     ? "What we pay the supplier per unit — this batch's Capital."
                     : "What we pay the supplier per unit, for the payables total"}
                 </p>
@@ -356,7 +417,7 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
               </div>
             )}
 
-            {isRepairPart && (
+            {isBulk && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1.5">
@@ -382,7 +443,7 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
                     onChange={(e) => update("condition", e.target.value)}
                     className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    {repairPartConditionOptions.map((c) => (
+                    {(isRepairPart ? repairPartConditionOptions : conditionOptions).map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
@@ -419,7 +480,7 @@ function LogShipmentArrivalModal({ onClose, onCreated }) {
               disabled={submitting}
               className="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-60"
             >
-              {submitting ? "Saving..." : isRepairPart ? "Add to Inventory" : "Log Shipment"}
+              {submitting ? "Saving..." : isBulk ? "Add to Inventory" : "Log Shipment"}
             </button>
           </div>
         </form>

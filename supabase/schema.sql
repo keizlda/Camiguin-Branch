@@ -83,14 +83,14 @@ create table public.product_models (
 
 create table public.devices (
   id uuid primary key default gen_random_uuid(),
-  -- Not `unique` here — see devices_batch_code_unique_serialized below, a
-  -- partial unique index instead. Bulk-identical accessories (headsets,
-  -- cases) are added as one row per physical unit (same as everything
-  -- else, so status/Sales/Reports all keep working per-unit unchanged)
-  -- but deliberately share one batch code across the whole batch, since
-  -- they're interchangeable and only need one printed barcode between
-  -- them — a plain unique constraint would reject that outright.
-  -- Serialized devices (phones etc.) still can't collide.
+  -- Not `unique` — a bulk-identical batch (any category — a box of the
+  -- same case, or a shipment of the same phone/storage/color arriving
+  -- together, see Add Device/Log Shipment Arrival's Bulk toggle) is added
+  -- as one row per physical unit (same as everything else, so status/
+  -- Sales/Reports all keep working per-unit unchanged) but deliberately
+  -- shares one batch code across the whole batch, since every unit in it
+  -- is interchangeable and only needs one printed barcode between them —
+  -- a unique constraint would reject that outright.
   batch_code text not null,
   device_name text not null,
   -- Free text, not a foreign key or CHECK-constrained enum — matches
@@ -370,17 +370,14 @@ left join lateral (
 
 create index on public.devices (supplier_id);
 create index on public.devices (status);
--- Enforces batch_code uniqueness for every serialized device (phones,
--- tablets, etc.) same as before, but exempts Accessories/Repair Parts —
--- a bulk-added batch of identical accessories deliberately shares one
--- code across every unit in it. Mirrors the same hardcoded pair
--- isAccessoryLikeCategory checks in referenceData.js/AddDevice.jsx —
--- devices.category stores categories.db_value, which is identical to
--- categories.name for these two specifically (unlike the four original
--- Apple categories), so the literal string match here is exact.
-create unique index devices_batch_code_unique_serialized
-  on public.devices (batch_code)
-  where category not in ('Accessories', 'Repair Parts');
+-- batch_code is deliberately not unique — Add Device/Log Shipment Arrival's
+-- Bulk toggle (any category, not just Accessories/Repair Parts) inserts
+-- several rows sharing one batch code/printed label on purpose, for a
+-- shipment of genuinely identical units (same model/storage/color/
+-- condition/price). Each unit is still its own row with its own status/
+-- sale/return history — only the code they're labeled with is shared, so
+-- nothing about per-unit tracking changes. Plain (non-unique) index here
+-- is purely for lookup performance.
 create index on public.devices (batch_code);
 create index on public.sales (salesperson_id);
 create index on public.sale_items (sale_id);
@@ -823,11 +820,12 @@ $$;
 -- quantity_expected, the shell flips to Completed in the same atomic call.
 --
 -- p_quantity inserts that many identical rows in one atomic call instead
--- of one — for bulk-identical accessories (headsets, cases) sharing a
--- single batch code (see devices_batch_code_unique_serialized), so
--- logging 20 of the same case is one action, not 20, and can't leave a
--- half-logged batch if the connection drops partway through like 20
--- separate client-side calls could. Returns the first row's id — plenty
+-- of one — for a bulk-identical batch (Add Device/Log Shipment Arrival's
+-- Bulk toggle, any category — a box of the same case, or several of the
+-- same phone/storage/color arriving together) sharing a single batch
+-- code, so logging 20 of the same unit is one action, not 20, and can't
+-- leave a half-logged batch if the connection drops partway through like
+-- 20 separate client-side calls could. Returns the first row's id — plenty
 -- for the "Print Label" prompt after saving, since the whole batch prints
 -- as a single shared label, not one per unit.
 --
