@@ -11,6 +11,7 @@ import LogShipmentArrivalModal from "../../components/inventory/LogShipmentArriv
 import PendingShipmentsCard from "../../components/inventory/PendingShipmentsCard";
 import EditShipmentShellModal from "../../components/inventory/EditShipmentShellModal";
 import PrintLabelsModal from "../../components/inventory/PrintLabelsModal";
+import PrintBarcodeSheetModal from "../../components/inventory/PrintBarcodeSheetModal";
 import { getDeviceKind } from "../../utils/deviceKind";
 import { useServiceData } from "../../hooks/useServiceData";
 import { getAllDevices, getLowStockItems, deleteDevice } from "../../services/inventoryService";
@@ -83,6 +84,7 @@ function AllDevices() {
   // changes again before printing.
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [printDevices, setPrintDevices] = useState(null);
+  const [showReferenceSheet, setShowReferenceSheet] = useState(false);
 
   const handleToggleSelect = (id) => {
     setSelectedIds((prev) => {
@@ -302,6 +304,13 @@ function AllDevices() {
               </button>
             )}
             <button
+              onClick={() => setShowReferenceSheet(true)}
+              className="flex items-center gap-2 text-sm text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50"
+            >
+              <Printer size={14} />
+              Print Reference Sheet
+            </button>
+            <button
               onClick={() => setShowLogShipment(true)}
               className="flex items-center gap-2 text-sm text-gray-600 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50"
             >
@@ -363,6 +372,10 @@ function AllDevices() {
 
     {printDevices && (
       <PrintLabelsModal devices={printDevices} onClose={() => setPrintDevices(null)} />
+    )}
+
+    {showReferenceSheet && (
+      <PrintBarcodeSheetModal devices={filtered} onClose={() => setShowReferenceSheet(false)} />
     )}
     </>
   );
