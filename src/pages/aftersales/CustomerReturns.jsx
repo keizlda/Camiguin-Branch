@@ -65,7 +65,8 @@ function CustomerReturns() {
     if (
       appliedSearch &&
       !(r.batchCode || "").toLowerCase().includes(appliedSearch.toLowerCase()) &&
-      !(r.customer || "").toLowerCase().includes(appliedSearch.toLowerCase())
+      !(r.customer || "").toLowerCase().includes(appliedSearch.toLowerCase()) &&
+      !(r.device || "").toLowerCase().includes(appliedSearch.toLowerCase())
     )
       return false;
     return true;
@@ -163,7 +164,7 @@ function CustomerReturns() {
 
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">
-              Search (Batch Code / Customer)
+              Search (Batch Code / Device / Customer)
             </label>
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -171,7 +172,7 @@ function CustomerReturns() {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Type batch code or customer..."
+                placeholder="Type batch code, device name, or customer..."
                 className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>

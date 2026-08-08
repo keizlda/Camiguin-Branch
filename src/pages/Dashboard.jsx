@@ -45,7 +45,7 @@ function Dashboard() {
     ? allDevices
         .filter((d) => {
           const q = deviceSearch.toLowerCase();
-          return d.batchCode?.toLowerCase().includes(q);
+          return d.batchCode?.toLowerCase().includes(q) || d.device?.toLowerCase().includes(q);
         })
         .slice(0, 8)
     : [];
@@ -87,7 +87,7 @@ function Dashboard() {
       {/* Search bar */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <p className="text-sm font-medium text-gray-700 mb-3">
-          Search Device (Batch Code)
+          Search Device (Batch Code or Name)
         </p>
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -95,7 +95,7 @@ function Dashboard() {
             type="text"
             value={deviceSearch}
             onChange={(e) => setDeviceSearch(e.target.value)}
-            placeholder="Type batch code..."
+            placeholder="Type batch code or device name..."
             className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           {deviceSearch.trim() && (

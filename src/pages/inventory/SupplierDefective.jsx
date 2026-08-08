@@ -67,7 +67,10 @@ function SupplierDefective() {
     const to = f.dateRange?.to || null;
     return supplierDefectiveRecords.filter((r) => {
       const detectedDate = new Date(r.dateDetected);
-      const matchesSearch = !f.search || (r.batchCode || "").toLowerCase().includes(f.search.toLowerCase());
+      const matchesSearch =
+        !f.search ||
+        (r.batchCode || "").toLowerCase().includes(f.search.toLowerCase()) ||
+        (r.device || "").toLowerCase().includes(f.search.toLowerCase());
       return (
         matchesSearch &&
         (f.supplier === "All" || r.supplier === f.supplier) &&
@@ -134,7 +137,7 @@ function SupplierDefective() {
           </div>
           <div>
             <label className="flex items-end min-h-[2.25rem] text-xs font-medium text-gray-500 mb-1.5">
-              Search (Batch Code)
+              Search (Batch Code / Device)
             </label>
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -142,7 +145,7 @@ function SupplierDefective() {
                 type="text"
                 value={filters.search}
                 onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-                placeholder="Type batch code..."
+                placeholder="Type batch code or device name..."
                 className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>

@@ -176,7 +176,8 @@ function SalesHistory() {
     if (
       appliedSearch &&
       !(s.batchCode || "").toLowerCase().includes(appliedSearch.toLowerCase()) &&
-      !(s.customer || "").toLowerCase().includes(appliedSearch.toLowerCase())
+      !(s.customer || "").toLowerCase().includes(appliedSearch.toLowerCase()) &&
+      !(s.device || "").toLowerCase().includes(appliedSearch.toLowerCase())
     )
       return false;
     if (dateRange?.from || dateRange?.to) {
@@ -269,7 +270,7 @@ function SalesHistory() {
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1.5">Search Batch Code / Customer</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1.5">Search Batch Code / Device / Customer</label>
             <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -277,7 +278,7 @@ function SalesHistory() {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search batch code or customer name..."
+                  placeholder="Search batch code, device, or customer name..."
                   className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>

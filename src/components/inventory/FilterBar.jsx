@@ -21,7 +21,7 @@ function FilterBar({ filters, setFilters, onApply, onClear, kinds = [] }) {
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <div>
           <label className="flex items-end min-h-[2.25rem] text-xs font-medium text-gray-500 mb-1.5">
-            Search Device (Batch Code)
+            Search Device (Batch Code / Name)
           </label>
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -30,7 +30,7 @@ function FilterBar({ filters, setFilters, onApply, onClear, kinds = [] }) {
                 type="text"
                 value={filters.search}
                 onChange={(e) => update("search", e.target.value)}
-                placeholder="Type batch code..."
+                placeholder="Type batch code or device name..."
                 className="w-full pl-8 pr-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
