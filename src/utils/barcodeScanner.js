@@ -6,11 +6,22 @@ import { DecodeHintType } from "@zxing/library";
 // desktop session) — one place to keep them from drifting apart, and one
 // place to keep tuning if scanning still needs to get faster/more reliable.
 //
-// ideal (not exact) 1280x720 caps the camera frame size instead of letting
-// the browser default to the sensor's native/often much higher resolution
-// — every decode attempt then has far fewer pixels to binarize, which is
-// most of why scanning felt slow. "ideal" degrades gracefully on a camera
-// that can't hit it exactly, rather than refusing to open at all.
+// ideal (not exact) 1920x1080 caps the camera frame size instead of
+// letting the browser default to the sensor's native/often much higher
+// resolution — every decode attempt then has far fewer pixels to binarize
+// than that native resolution would give it. "ideal" degrades gracefully
+// on a camera that can't hit it exactly, rather than refusing to open at
+// all.
+//
+// This was originally capped lower, at 1280x720 — real testing showed
+// that traded too much resolved detail away: at a normal, comfortably-
+// in-focus distance the barcode's bars weren't wide enough in the smaller
+// frame to resolve cleanly, forcing staff into the camera's macro range
+// to compensate, which is exactly where continuous autofocus struggles
+// most (hunting back and forth without ever locking). 1080p keeps enough
+// real pixels-per-bar at a normal distance that getting uncomfortably
+// close stops being necessary in the first place — a more direct fix for
+// a focus problem than tuning focus hints further would have been.
 //
 // focusMode inside `advanced` is a best-effort continuous-autofocus hint
 // some browsers (mainly Chrome on Android) honor — a blurry, not-yet-
@@ -20,8 +31,8 @@ import { DecodeHintType } from "@zxing/library";
 export const SCAN_VIDEO_CONSTRAINTS = {
   video: {
     facingMode: "environment",
-    width: { ideal: 1280 },
-    height: { ideal: 720 },
+    width: { ideal: 1920 },
+    height: { ideal: 1080 },
     advanced: [{ focusMode: "continuous" }],
   },
 };
