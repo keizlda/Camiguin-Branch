@@ -71,6 +71,7 @@ function createBlankForm() {
     issueDescription: "",
     remarks: "",
     shellId: "",
+    quantity: "1",
   };
 }
 
@@ -178,6 +179,11 @@ function AddDevice() {
   // accessory-like — default to treating it as a serialized device (the
   // common case), same as every real category except the two literal ones.
   const isRepairPart = isAccessoryLikeCategory(form.category);
+  // Bulk quantity only makes sense for accessories/repair parts — a
+  // headset or screen protector batch is genuinely interchangeable unit
+  // to unit, unlike a serialized phone. Clamped to at least 1 so an
+  // emptied or invalid field can't submit a zero/negative-quantity batch.
+  const resolvedQuantity = isRepairPart ? Math.max(1, parseInt(form.quantity, 10) || 1) : 1;
   const selectedShell = pendingShells.find((s) => s.id === form.shellId);
 
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
@@ -194,6 +200,7 @@ function AddDevice() {
       customModel: "",
       color: "",
       storage: "",
+      quantity: "1",
       // "Brand New" is valid in both condition vocabularies, so switching
       // category never leaves a stale, now-invalid condition selected.
       condition: "Brand New",
@@ -277,9 +284,10 @@ function AddDevice() {
         issueDescription: isDefective ? form.issueDescription.trim() : null,
         bulkOrderShellId: form.shellId || null,
         dateArrived: selectedShell ? selectedShell.dateArrived : null,
+        quantity: resolvedQuantity,
       });
 
-      showToast("Device saved.");
+      showToast(resolvedQuantity > 1 ? `${resolvedQuantity} units saved.` : "Device saved.");
       setJustSaved({
         id: savedDevice.id,
         batchCode: form.batchCode.trim(),
@@ -525,6 +533,28 @@ function AddDevice() {
               </div>
             )}
 
+            {isRepairPart && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Quantity <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={form.quantity}
+                  onChange={(e) => update("quantity", e.target.value)}
+                  required
+                  className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  {resolvedQuantity > 1
+                    ? `Logs ${resolvedQuantity} identical units sharing one batch code and one printed label — for a batch of interchangeable stock like a box of the same case or headset.`
+                    : "More than 1 logs identical units sharing one batch code and one printed label, for interchangeable stock like a box of the same case or headset."}
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
                 Condition <span className="text-red-500">*</span>
@@ -715,6 +745,12 @@ function AddDevice() {
               <span className="text-gray-400">Model</span>
               <span className="text-gray-700">{resolvedModel || "—"}</span>
             </div>
+            {isRepairPart && (
+              <div className="flex justify-between">
+                <span className="text-gray-400">Quantity</span>
+                <span className="text-gray-700">{resolvedQuantity}</span>
+              </div>
+            )}
             {!isRepairPart && (
               <>
                 <div className="flex justify-between">

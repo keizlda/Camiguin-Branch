@@ -10,9 +10,26 @@ import Barcode from "../common/Barcode";
 // Matches the 6 columns x 11 rows grid in index.css's .label-sheet.
 const LABELS_PER_PAGE = 66;
 
+// Bulk-added accessories (headsets, cases) share one batch_code across every
+// unit in the batch — see add_device's p_quantity in schema.sql. They're
+// interchangeable, so printing one label per row would print the same
+// barcode 20 times for a batch of 20. Collapsing by batchCode here means
+// serialized devices (always a unique code per row) are unaffected, while a
+// shared-code batch — whatever its size — prints as a single label.
+function dedupeByBatchCode(devices) {
+  const map = new Map();
+  for (const d of devices) {
+    const existing = map.get(d.batchCode);
+    if (existing) existing.count += 1;
+    else map.set(d.batchCode, { ...d, count: 1 });
+  }
+  return [...map.values()];
+}
+
 function PrintLabelsModal({ devices, onClose }) {
   const handlePrint = () => window.print();
-  const pageCount = Math.ceil(devices.length / LABELS_PER_PAGE);
+  const labels = dedupeByBatchCode(devices);
+  const pageCount = Math.ceil(labels.length / LABELS_PER_PAGE);
 
   return (
     <>
@@ -26,7 +43,7 @@ function PrintLabelsModal({ devices, onClose }) {
           <div className="flex items-center gap-2">
             <Printer size={16} className="text-blue-500" />
             <p className="font-semibold text-gray-800">
-              Print {devices.length === 1 ? "Label" : `Labels (${devices.length})`}
+              Print {labels.length === 1 ? "Label" : `Labels (${labels.length})`}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
@@ -37,13 +54,18 @@ function PrintLabelsModal({ devices, onClose }) {
         <div className="px-5 py-4 max-h-[50vh] overflow-y-auto">
           <p className="text-xs text-gray-400 mb-3">
             Prints on a 29×21mm A4 adhesive label sheet (normal printer, not the thermal one) — 6 columns × 11
-            rows, {LABELS_PER_PAGE} labels per sheet. This batch: {devices.length} label{devices.length === 1 ? "" : "s"}{" "}
+            rows, {LABELS_PER_PAGE} labels per sheet. This batch: {labels.length} label{labels.length === 1 ? "" : "s"}{" "}
             across {pageCount} page{pageCount === 1 ? "" : "s"}.
           </p>
           <div className="border border-gray-100 rounded-lg divide-y divide-gray-100">
-            {devices.map((d) => (
-              <div key={d.id} className="px-3 py-2 text-sm">
-                <p className="text-gray-800 font-medium">{d.batchCode}</p>
+            {labels.map((d) => (
+              <div key={d.batchCode} className="px-3 py-2 text-sm">
+                <p className="text-gray-800 font-medium">
+                  {d.batchCode}
+                  {d.count > 1 && (
+                    <span className="text-xs text-gray-400 font-normal"> · {d.count} units, 1 label</span>
+                  )}
+                </p>
                 <p className="text-xs text-gray-400">{[d.device, d.storage, d.color].filter(Boolean).join(" · ")}</p>
               </div>
             ))}
@@ -69,8 +91,8 @@ function PrintLabelsModal({ devices, onClose }) {
         wrapper above never touches this, since it's a sibling, not a
         descendant), and this is all that shows when printing. */}
     <div className="hidden print:block label-sheet">
-      {devices.map((d) => (
-        <div key={d.id} className="label-cell">
+      {labels.map((d) => (
+        <div key={d.batchCode} className="label-cell">
           {/* w-full scales to the cell's content width (29mm minus the
               0.3mm padding on each side, index.css) — 28.4mm, still
               comfortably above the simulated-safe 26mm+ threshold. height

@@ -83,7 +83,15 @@ create table public.product_models (
 
 create table public.devices (
   id uuid primary key default gen_random_uuid(),
-  batch_code text not null unique,
+  -- Not `unique` here — see devices_batch_code_unique_serialized below, a
+  -- partial unique index instead. Bulk-identical accessories (headsets,
+  -- cases) are added as one row per physical unit (same as everything
+  -- else, so status/Sales/Reports all keep working per-unit unchanged)
+  -- but deliberately share one batch code across the whole batch, since
+  -- they're interchangeable and only need one printed barcode between
+  -- them — a plain unique constraint would reject that outright.
+  -- Serialized devices (phones etc.) still can't collide.
+  batch_code text not null,
   device_name text not null,
   -- Free text, not a foreign key or CHECK-constrained enum — matches
   -- categories.db_value, but see the comment on that table for why it
@@ -342,6 +350,18 @@ left join lateral (
 
 create index on public.devices (supplier_id);
 create index on public.devices (status);
+-- Enforces batch_code uniqueness for every serialized device (phones,
+-- tablets, etc.) same as before, but exempts Accessories/Repair Parts —
+-- a bulk-added batch of identical accessories deliberately shares one
+-- code across every unit in it. Mirrors the same hardcoded pair
+-- isAccessoryLikeCategory checks in referenceData.js/AddDevice.jsx —
+-- devices.category stores categories.db_value, which is identical to
+-- categories.name for these two specifically (unlike the four original
+-- Apple categories), so the literal string match here is exact.
+create unique index devices_batch_code_unique_serialized
+  on public.devices (batch_code)
+  where category not in ('Accessories', 'Repair Parts');
+create index on public.devices (batch_code);
 create index on public.sales (salesperson_id);
 create index on public.sale_items (sale_id);
 create index on public.sale_items (device_id);
@@ -751,6 +771,21 @@ $$;
 -- (see bulk_order_shells) — both optional, unrelated to a device's normal
 -- date_added. When linking pushes a shell's logged count up to its
 -- quantity_expected, the shell flips to Completed in the same atomic call.
+--
+-- p_quantity inserts that many identical rows in one atomic call instead
+-- of one — for bulk-identical accessories (headsets, cases) sharing a
+-- single batch code (see devices_batch_code_unique_serialized), so
+-- logging 20 of the same case is one action, not 20, and can't leave a
+-- half-logged batch if the connection drops partway through like 20
+-- separate client-side calls could. Returns the first row's id — plenty
+-- for the "Print Label" prompt after saving, since the whole batch prints
+-- as a single shared label, not one per unit.
+--
+-- Signature changed (added p_quantity) from the version this replaced —
+-- create or replace doesn't swap in a changed parameter list, it adds a
+-- second overload, so the old signature is dropped first.
+drop function if exists public.add_device(text, text, text, text, text, text, text, numeric, text, timestamptz, text, uuid, timestamptz, numeric, text);
+
 create function public.add_device(
   p_batch_code text,
   p_device_name text,
@@ -766,7 +801,8 @@ create function public.add_device(
   p_bulk_order_shell_id uuid default null,
   p_date_arrived timestamptz default null,
   p_purchase_price numeric default null,
-  p_condition text default null
+  p_condition text default null,
+  p_quantity int default 1
 )
 returns uuid
 language plpgsql
@@ -776,8 +812,10 @@ as $$
 declare
   v_supplier_id uuid;
   v_device_id uuid;
+  v_first_device_id uuid;
   v_linked_count int;
   v_quantity_expected int;
+  v_i int;
 begin
   if p_supplier_name is null or p_supplier_name = '' then
     v_supplier_id := null;
@@ -785,14 +823,20 @@ begin
     select id into v_supplier_id from public.suppliers where name = p_supplier_name;
   end if;
 
-  insert into public.devices (batch_code, device_name, category, storage, color, status, supplier_id, selling_price, purchase_price, condition, notes, date_added, bulk_order_shell_id, date_arrived)
-  values (p_batch_code, p_device_name, p_category, p_storage, p_color, p_status, v_supplier_id, p_price, p_purchase_price, p_condition, p_notes, p_date_added, p_bulk_order_shell_id, p_date_arrived)
-  returning id into v_device_id;
+  for v_i in 1..greatest(p_quantity, 1) loop
+    insert into public.devices (batch_code, device_name, category, storage, color, status, supplier_id, selling_price, purchase_price, condition, notes, date_added, bulk_order_shell_id, date_arrived)
+    values (p_batch_code, p_device_name, p_category, p_storage, p_color, p_status, v_supplier_id, p_price, p_purchase_price, p_condition, p_notes, p_date_added, p_bulk_order_shell_id, p_date_arrived)
+    returning id into v_device_id;
 
-  if p_status = 'Supplier Defective' and p_issue_description is not null then
-    insert into public.supplier_defective_records (device_id, supplier_id, issue_description)
-    values (v_device_id, v_supplier_id, p_issue_description);
-  end if;
+    if v_first_device_id is null then
+      v_first_device_id := v_device_id;
+    end if;
+
+    if p_status = 'Supplier Defective' and p_issue_description is not null then
+      insert into public.supplier_defective_records (device_id, supplier_id, issue_description)
+      values (v_device_id, v_supplier_id, p_issue_description);
+    end if;
+  end loop;
 
   if p_bulk_order_shell_id is not null then
     select count(*) into v_linked_count from public.devices where bulk_order_shell_id = p_bulk_order_shell_id;
@@ -802,7 +846,7 @@ begin
     end if;
   end if;
 
-  return v_device_id;
+  return v_first_device_id;
 end;
 $$;
 

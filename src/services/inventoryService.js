@@ -145,6 +145,12 @@ export async function getNextBatchSequence(prefix) {
 // a dropped connection between "insert the device" and "create the record"
 // used to be able to leave a brand-new device marked Supplier Defective
 // with no record to show for it.
+//
+// device.quantity (default 1) inserts that many identical rows sharing one
+// batch code in the same atomic call — for bulk-identical accessories
+// (headsets, cases) where every unit is interchangeable. Returns just the
+// first row's id, which is all the "Print Label" prompt after saving
+// needs (the whole batch prints as one shared label, not one per unit).
 export async function addDevice(device) {
   const { data, error } = await supabase.rpc("add_device", {
     p_batch_code: device.batchCode,
@@ -162,6 +168,7 @@ export async function addDevice(device) {
     p_date_arrived: device.dateArrived || null,
     p_purchase_price: device.purchasePrice ?? null,
     p_condition: device.condition || null,
+    p_quantity: device.quantity || 1,
   });
 
   if (error) throw error;
