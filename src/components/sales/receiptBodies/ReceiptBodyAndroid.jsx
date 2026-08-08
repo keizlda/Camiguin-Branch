@@ -98,7 +98,15 @@ function ReceiptBodyAndroid({ receipt }) {
       <div className="border-t border-dashed border-gray-400 my-2.5" />
 
       <div className="space-y-0.5">
-        <Row label="Date:" value={`${formatDate(receipt.soldAt)} ${formatTime(receipt.soldAt)}`} />
+        {/* Date and time as two rows, not one "Date:" row holding both —
+            "Date: Aug 8, 2026 6:57 PM" runs past RECEIPT_CHARS on its own,
+            which padLine then wraps into a lone "Date:" label sitting
+            above a right-padded value on the next line. Two short rows
+            both fit on one line each regardless of the exact character
+            budget, instead of depending on getting that budget exactly
+            right. */}
+        <Row label="Date:" value={formatDate(receipt.soldAt)} />
+        <Row label="Time:" value={formatTime(receipt.soldAt)} />
         {receipt.customerName && <Row label="Customer:" value={receipt.customerName} />}
         {receipt.customerPhone && <Row label="Contact:" value={receipt.customerPhone} />}
       </div>
