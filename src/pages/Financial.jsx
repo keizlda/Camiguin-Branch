@@ -9,6 +9,7 @@ import DateRangePicker from "../components/common/DateRangePicker";
 import UnsoldUnitsModal from "../components/financial/UnsoldUnitsModal";
 import ExpenseCategoryModal from "../components/financial/ExpenseCategoryModal";
 import DeviceDetailsModal from "../components/inventory/DeviceDetailsModal";
+import { isAccessoryLikeCategory } from "../data/referenceData";
 import { useToast } from "../hooks/useToast";
 
 const REPORT_TYPES = ["Daily", "Weekly", "Monthly", "Quarterly", "Annually", "Custom Range"];
@@ -188,8 +189,12 @@ function Financial() {
   // A present-moment snapshot of stock still on hand — not scoped to the
   // selected date range, since "what's tied up in unsold inventory right
   // now" doesn't depend on which period the sales/expenses report covers.
+  // Accessories/Repair Parts are excluded — a bulk restock (dozens of
+  // identical units sharing one batch code) would otherwise swing this
+  // card's capital figure without reflecting actual device inventory, the
+  // same reasoning Dashboard/All Devices' own stat cards already use.
   const unsoldUnits = useMemo(
-    () => allDevices.filter((d) => UNSOLD_STATUSES.includes(d.status)),
+    () => allDevices.filter((d) => UNSOLD_STATUSES.includes(d.status) && !isAccessoryLikeCategory(d.category)),
     [allDevices]
   );
   const unsoldTotals = useMemo(() => {
@@ -354,6 +359,42 @@ function Financial() {
           </button>
         </div>
       </div>
+
+      {/* Inventory On Hand — a present-moment snapshot of what's still
+          unsold right now, independent of the date range/report type
+          above, so it leads the page instead of trailing after the
+          period-scoped numbers below. Only meaningful for the
+          longer-horizon report types, not a single day/week/month. */}
+      {(reportType === "Quarterly" || reportType === "Annually") && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <p className="font-bold text-gray-800 mb-1">Inventory On Hand (Unsold Devices)</p>
+          <p className="text-xs text-gray-400 mb-4">
+            Current snapshot — every device not yet Sold, regardless of the date range above. Its capital is
+            carried into the Expenses summary below as its own line, not added to profit. Accessories/Repair Parts
+            aren't counted here — bulk restocks would otherwise swing this figure without reflecting device
+            inventory.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <SummaryCard
+              icon={Boxes}
+              iconBg="bg-purple-50 text-purple-600"
+              label="DEVICES IN STOCK"
+              value={unsoldTotals.count}
+              sub="Not yet Sold — click to view"
+              valueClass="text-purple-600"
+              onClick={() => setShowUnsoldUnits(true)}
+            />
+            <SummaryCard
+              icon={Wallet}
+              iconBg="bg-gray-100 text-gray-600"
+              label="CAPITAL TIED UP"
+              value={peso(unsoldTotals.totalCapital)}
+              sub="Cost basis of unsold devices"
+              valueClass="text-gray-700"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 print:hidden">
@@ -649,38 +690,6 @@ function Financial() {
           </div>
         </div>
       </div>
-
-      {/* Inventory On Hand — a snapshot of what's still unsold right now,
-          independent of the date range above. Only meaningful for the
-          longer-horizon report types, not a single day/week/month. */}
-      {(reportType === "Quarterly" || reportType === "Annually") && (
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="font-bold text-gray-800 mb-1">Inventory On Hand (Unsold Units)</p>
-          <p className="text-xs text-gray-400 mb-4">
-            Current snapshot — every unit not yet Sold, regardless of the date range above. Its capital is
-            carried into the Expenses summary above as its own line, not added to profit.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <SummaryCard
-              icon={Boxes}
-              iconBg="bg-purple-50 text-purple-600"
-              label="UNITS IN STOCK"
-              value={unsoldTotals.count}
-              sub="Not yet Sold — click to view"
-              valueClass="text-purple-600"
-              onClick={() => setShowUnsoldUnits(true)}
-            />
-            <SummaryCard
-              icon={Wallet}
-              iconBg="bg-gray-100 text-gray-600"
-              label="CAPITAL TIED UP"
-              value={peso(unsoldTotals.totalCapital)}
-              sub="Cost basis of unsold stock"
-              valueClass="text-gray-700"
-            />
-          </div>
-        </div>
-      )}
 
       {/* Note */}
       <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-700 print:hidden">

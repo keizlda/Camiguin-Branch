@@ -10,8 +10,9 @@ const statusStyles = {
 
 const peso = (n) => "₱" + Number(n || 0).toLocaleString("en-PH", { maximumFractionDigits: 2 });
 
-// Every unit behind Financial's "Units In Stock" card — everything not yet
-// Sold, the same set counted into Capital Tied Up.
+// Every device behind Financial's "Devices In Stock" card — everything not
+// yet Sold (accessories/repair parts excluded, see Financial.jsx), the same
+// set counted into Capital Tied Up.
 function UnsoldUnitsModal({ units, onClose, onView }) {
   const totalCapital = units.reduce((sum, u) => sum + (u.purchasePrice || 0), 0);
 
@@ -20,8 +21,8 @@ function UnsoldUnitsModal({ units, onClose, onView }) {
       <div className="bg-white rounded-xl w-full max-w-3xl shadow-xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
-            <p className="font-semibold text-gray-800">Units In Stock</p>
-            <p className="text-xs text-gray-400">Every unit not yet Sold, across every status</p>
+            <p className="font-semibold text-gray-800">Devices In Stock</p>
+            <p className="text-xs text-gray-400">Every device not yet Sold, across every status</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
             <X size={18} />
@@ -73,7 +74,7 @@ function UnsoldUnitsModal({ units, onClose, onView }) {
 
         <div className="px-5 py-4 border-t border-gray-100 flex justify-between items-center">
           <p className="text-xs text-gray-400">
-            {units.length} unit{units.length === 1 ? "" : "s"} · {peso(totalCapital)} capital tied up
+            {units.length} device{units.length === 1 ? "" : "s"} · {peso(totalCapital)} capital tied up
           </p>
           <button
             onClick={onClose}

@@ -433,21 +433,6 @@ function AddDevice() {
               )}
             </div>
 
-            {/* No catalog entry to show a brand for on a custom category —
-                this field is purely informational (never actually saved
-                onto the device), so there's nothing meaningful to display. */}
-            {!isOtherCategory && (
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Brand</label>
-                <input
-                  type="text"
-                  value={catalog.brand}
-                  disabled
-                  className="w-full border border-gray-200 rounded-lg text-sm px-3 py-2 bg-gray-50 text-gray-400"
-                />
-              </div>
-            )}
-
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
                 Model <span className="text-red-500">*</span>
