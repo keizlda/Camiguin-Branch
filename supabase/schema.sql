@@ -264,20 +264,32 @@ create index on public.expenses (expense_date);
 -- variants) and flags models below their configured reorder level.
 -- security_invoker means it respects the querying user's own RLS on devices,
 -- rather than running with the view owner's privileges.
+--
+-- left join, not join — a reorder setting can (and often should) be
+-- configured for a model with zero units currently in devices at all, the
+-- most urgent case to want a low-stock alert for (see getDeviceModelNames
+-- in reorderService.js, which deliberately offers the whole catalog, not
+-- just models already in stock). A plain join dropped that reorder_settings
+-- row entirely — before the having clause ever ran — the moment its model
+-- had no matching devices rows, so a second/third configured model with no
+-- stock yet silently never appeared. product_models is joined too, only to
+-- fill in category for that same zero-stock case, where devices has
+-- nothing to read a category from.
 create view public.low_stock_view
 with (security_invoker = true) as
 select
-  d.device_name,
-  d.category,
+  rs.device_name,
+  coalesce(d.category, pm.category) as category,
   rs.reorder_level,
-  count(*) filter (where d.status = 'Available') as available,
+  count(d.id) filter (where d.status = 'Available') as available,
   coalesce(sum(d.selling_price) filter (where d.status = 'Available'), 0) as estimated_value,
   max(d.date_added) as last_updated
 from public.reorder_settings rs
-join public.devices d on d.device_name = rs.device_name
+left join public.devices d on d.device_name = rs.device_name
+left join public.product_models pm on pm.name = rs.device_name
 where rs.enabled = true
-group by d.device_name, d.category, rs.reorder_level
-having count(*) filter (where d.status = 'Available') < rs.reorder_level;
+group by rs.device_name, rs.reorder_level, coalesce(d.category, pm.category)
+having count(d.id) filter (where d.status = 'Available') < rs.reorder_level;
 
 -- How many units have been linked back to each shipment shell so far — used
 -- by Add Device's "Link to Pending Shipment" dropdown and the All Devices

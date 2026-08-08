@@ -194,8 +194,12 @@ export async function getLowStockItems() {
       available: r.available,
       reorderLevel: r.reorder_level,
       estimatedValue: r.estimated_value,
-      lastUpdated: formatDate(r.last_updated),
-      time: formatTime(r.last_updated),
+      // A model with a reorder setting but zero units ever added has no
+      // date_added to read last_updated from — formatDate(null) would
+      // otherwise print the 1970 epoch instead of admitting there's no
+      // date to show.
+      lastUpdated: r.last_updated ? formatDate(r.last_updated) : "—",
+      time: r.last_updated ? formatTime(r.last_updated) : "",
     }));
 }
 

@@ -42,20 +42,40 @@ function ScanBarcodeModal({ onScanned, onClose }) {
     if (mode !== "device") return;
     setDeviceError("");
     let cancelled = false;
-    const reader = new BrowserMultiFormatReader();
+    // Default is a 500ms gap between decode attempts — noticeably laggy
+    // for something staff expect to feel instant. 100ms is still well
+    // above a single camera frame (~33ms at 30fps), so this isn't
+    // decoding faster than new frames actually arrive, just not sitting
+    // idle for half a second between tries.
+    const reader = new BrowserMultiFormatReader(undefined, { delayBetweenScanAttempts: 100 });
     reader.possibleFormats = [BarcodeFormat.CODE_128];
 
+    // decodeFromVideoDevice(undefined, ...) requests the camera with no
+    // resolution constraint, which on most phones means the sensor's
+    // native (often very high) resolution — every decode attempt then has
+    // far more pixels to binarize/scan than a 1D barcode needs, which is
+    // most of why scanning felt slow and occasionally timed out before
+    // ever landing a read. decodeFromConstraints lets an explicit,
+    // moderate resolution be requested instead — still sharp enough to
+    // read a barcode clearly, but a much smaller frame to process each
+    // attempt. "ideal" (not "exact") lets a camera that can't hit exactly
+    // 1280x720 fall back gracefully rather than failing to open at all.
     reader
-      .decodeFromVideoDevice(undefined, videoRef.current, (result, err, controls) => {
-        if (cancelled) return;
-        controlsRef.current = controls;
-        if (result) {
-          controls.stop();
-          onScannedRef.current(result.getText());
+      .decodeFromConstraints(
+        { video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } },
+        videoRef.current,
+        (result, err, controls) => {
+          if (cancelled) return;
+          controlsRef.current = controls;
+          if (result) {
+            controls.stop();
+            onScannedRef.current(result.getText());
+          }
+          // err is the expected NotFoundException on every frame that
+          // doesn't contain a decodable barcode yet — not a real failure,
+          // ignored.
         }
-        // err is the expected NotFoundException on every frame that doesn't
-        // contain a decodable barcode yet — not a real failure, ignored.
-      })
+      )
       .catch((err) => {
         if (cancelled) return;
         if (err?.name === "NotAllowedError") {

@@ -26,35 +26,43 @@ function PhoneScan() {
     if (!sessionId) return;
     let cancelled = false;
     const channel = supabase.channel(`scan-${sessionId}`);
-    const reader = new BrowserMultiFormatReader();
+    // See ScanBarcodeModal.jsx for why these two differ from the library
+    // defaults — a shorter delay between decode attempts and a capped,
+    // explicit video resolution instead of the camera's native one make
+    // scanning noticeably faster and more reliable.
+    const reader = new BrowserMultiFormatReader(undefined, { delayBetweenScanAttempts: 100 });
     reader.possibleFormats = [BarcodeFormat.CODE_128];
 
     reader
-      .decodeFromVideoDevice(undefined, videoRef.current, (result, err, controls) => {
-        if (cancelled || hasScannedRef.current) return;
-        controlsRef.current = controls;
-        if (!result) return;
-        hasScannedRef.current = true;
-        controls.stop();
+      .decodeFromConstraints(
+        { video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } },
+        videoRef.current,
+        (result, err, controls) => {
+          if (cancelled || hasScannedRef.current) return;
+          controlsRef.current = controls;
+          if (!result) return;
+          hasScannedRef.current = true;
+          controls.stop();
 
-        channel
-          .httpSend("scanned", { value: result.getText() })
-          .then((res) => {
-            if (cancelled) return;
-            if (res.success) {
-              setStatus("sent");
-            } else {
-              setStatus("error");
-              setError("Couldn't send the scan — check your connection and try reloading this page.");
-            }
-          })
-          .catch(() => {
-            if (!cancelled) {
-              setStatus("error");
-              setError("Couldn't send the scan — check your connection and try reloading this page.");
-            }
-          });
-      })
+          channel
+            .httpSend("scanned", { value: result.getText() })
+            .then((res) => {
+              if (cancelled) return;
+              if (res.success) {
+                setStatus("sent");
+              } else {
+                setStatus("error");
+                setError("Couldn't send the scan — check your connection and try reloading this page.");
+              }
+            })
+            .catch(() => {
+              if (!cancelled) {
+                setStatus("error");
+                setError("Couldn't send the scan — check your connection and try reloading this page.");
+              }
+            });
+        }
+      )
       .catch((err) => {
         if (cancelled) return;
         setStatus("error");

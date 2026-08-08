@@ -73,18 +73,23 @@ function Dashboard() {
   // sitting in inventory anymore. Every device status except Sold counts
   // (Available/Reserved/Supplier Defective/Customer Returned/Returned),
   // matching the same "still tied up in the business" convention Financial
-  // uses (UNSOLD_STATUSES there).
-  const inStockDevices = allDevices.filter((d) => d.status !== "Sold");
+  // uses (UNSOLD_STATUSES there). Accessories/Repair Parts are excluded —
+  // a bulk restock (dozens of identical units sharing one batch code)
+  // would otherwise dominate this breakdown instead of reflecting how
+  // device inventory is actually split across brands/categories.
+  const inStockDevices = allDevices.filter((d) => d.status !== "Sold" && !isAccessoryLikeCategory(d.category));
   const totalDevices = inStockDevices.length;
-  const inventoryByCategory = deviceCategories.map((cat, index) => {
-    const value = inStockDevices.filter((d) => d.category === cat).length;
-    return {
-      name: cat,
-      value,
-      percent: totalDevices ? Number(((value / totalDevices) * 100).toFixed(1)) : 0,
-      color: colorForCategory(cat, index),
-    };
-  });
+  const inventoryByCategory = deviceCategories
+    .filter((cat) => !isAccessoryLikeCategory(cat))
+    .map((cat, index) => {
+      const value = inStockDevices.filter((d) => d.category === cat).length;
+      return {
+        name: cat,
+        value,
+        percent: totalDevices ? Number(((value / totalDevices) * 100).toFixed(1)) : 0,
+        color: colorForCategory(cat, index),
+      };
+    });
 
   return (
     <div className="space-y-6">
