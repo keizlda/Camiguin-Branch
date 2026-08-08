@@ -199,7 +199,11 @@ function NewSale() {
 
   const clearCart = () => setCart([]);
 
-  const installmentEligible = cart.length > 0 && cart.every((c) => !NON_INSTALLMENT_CATEGORIES.includes(c.category));
+  // At least one real device, not every item — an accessory riding along
+  // with a phone (a case bought at the same time) shouldn't block the whole
+  // cart from being financed just because it's not itself financeable. A
+  // cart that's 100% accessories still has nothing for a lender to finance.
+  const installmentEligible = cart.some((c) => !NON_INSTALLMENT_CATEGORIES.includes(c.category));
 
   // Bulk either happens automatically past the unit-count threshold, or is
   // opted into manually via the toggle — e.g. a single-unit wholesale sale
@@ -469,7 +473,7 @@ function NewSale() {
                               </div>
                               <div>
                                 <p className="text-gray-800 font-medium">{p.product}</p>
-                                <p className="text-xs text-gray-400">{p.batchCode}</p>
+                                <p className="text-xs text-gray-400">{[p.brand, p.batchCode].filter(Boolean).join(" · ")}</p>
                               </div>
                             </div>
                           </td>
@@ -565,7 +569,7 @@ function NewSale() {
                     <div className="min-w-0">
                       <p className="text-sm text-gray-800 font-medium truncate">{c.product}</p>
                       <p className="text-xs text-gray-400">
-                        {[c.storage, c.color, c.batchCode].filter(Boolean).join(" · ")}
+                        {[c.brand, c.storage, c.color, c.batchCode].filter(Boolean).join(" · ")}
                       </p>
                       <p className="text-xs text-gray-400 mt-0.5">
                         Capital: ₱{(Number(c.purchasePrice) || 0).toLocaleString()} · Base: ₱
@@ -707,7 +711,8 @@ function NewSale() {
           ) : (
             cart.length > 0 && (
               <p className="text-xs text-gray-400 mt-4">
-                Installment isn't available — remove any accessories or repair parts from the cart to unlock it.
+                Installment isn't available — add at least one device to the cart to unlock it (an accessory-only
+                cart has nothing for a lender to finance).
               </p>
             )
           )}

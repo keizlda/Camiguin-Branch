@@ -48,7 +48,7 @@ function groupByBatchCode(devices) {
 function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selectedIds, onToggleSelect, onToggleSelectAll }) {
   const isAdmin = useIsAdmin();
   const [page, setPage] = useState(1);
-  const [perPage, setPerPage] = useState(10);
+  const [perPage, setPerPage] = useState(50);
   const [openMenu, setOpenMenu] = useState(null);
   const [viewingBatch, setViewingBatch] = useState(null);
 
@@ -301,9 +301,9 @@ function DeviceTable({ devices, onView, onEdit, onDelete, onPrintLabel, selected
             onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
             className="border border-gray-200 rounded-lg text-xs px-2 py-1.5"
           >
-            <option value={10}>10 per page</option>
-            <option value={20}>20 per page</option>
             <option value={50}>50 per page</option>
+            <option value={100}>100 per page</option>
+            <option value={200}>200 per page</option>
           </select>
 
           <div className="flex items-center gap-1">
