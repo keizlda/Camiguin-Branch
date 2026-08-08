@@ -10,6 +10,7 @@ import QuickAddDeviceModal from "../../components/sales/QuickAddDeviceModal";
 import SwapTradeInModal from "../../components/sales/SwapTradeInModal";
 import ScanBarcodeModal from "../../components/common/ScanBarcodeModal";
 import PrintReceiptModal from "../../components/sales/PrintReceiptModal";
+import { searchMatches } from "../../utils/search";
 
 const BULK_THRESHOLD = 3;
 
@@ -96,11 +97,8 @@ function NewSale() {
     return availableDevices.filter((p) => {
       if (cartIds.has(p.id)) return false;
       const matchesCategory = activeCategory === "All Categories" || p.category === activeCategory;
-      const matchesSearch =
-        !productSearch ||
-        p.product.toLowerCase().includes(productSearch.toLowerCase()) ||
-        p.batchCode.toLowerCase().includes(productSearch.toLowerCase());
-      return matchesCategory && matchesSearch;
+      const matchesTextSearch = searchMatches(productSearch, p.product, p.batchCode, p.brand);
+      return matchesCategory && matchesTextSearch;
     });
   }, [activeCategory, productSearch, availableDevices, cartIds]);
 

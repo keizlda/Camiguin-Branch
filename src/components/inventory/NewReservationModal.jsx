@@ -3,6 +3,7 @@ import { X, AlertTriangle } from "lucide-react";
 import { getAvailableDevicesForSale } from "../../services/inventoryService";
 import { createReservation } from "../../services/reservationsService";
 import { useToast } from "../../hooks/useToast";
+import { searchMatches } from "../../utils/search";
 
 function toISODate(d) {
   const offset = d.getTimezoneOffset();
@@ -35,9 +36,7 @@ function NewReservationModal({ onClose, onCreated }) {
   }, [showToast]);
 
   const filteredDevices = useMemo(() => {
-    if (!deviceSearch) return devices;
-    const q = deviceSearch.toLowerCase();
-    return devices.filter((d) => d.product.toLowerCase().includes(q) || d.batchCode.toLowerCase().includes(q));
+    return devices.filter((d) => searchMatches(deviceSearch, d.product, d.batchCode, d.brand));
   }, [devices, deviceSearch]);
 
   const selectedDevice = devices.find((d) => d.id === selectedId);

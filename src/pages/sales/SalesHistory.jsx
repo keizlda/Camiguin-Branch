@@ -24,6 +24,7 @@ import DateRangePicker from "../../components/common/DateRangePicker";
 import ScanBarcodeModal from "../../components/common/ScanBarcodeModal";
 import PrintReceiptModal from "../../components/sales/PrintReceiptModal";
 import { useToast } from "../../hooks/useToast";
+import { searchMatches } from "../../utils/search";
 
 // Mirrors NewSale.jsx's own NON_INSTALLMENT_CATEGORIES — installment
 // financing is for actual devices, not accessories/repair parts.
@@ -196,13 +197,7 @@ function SalesHistory() {
     if (bulkBuyer !== "All" && !(s.customer && s.customer.trim() === bulkBuyer)) return false;
     if (payment !== "All" && s.payment !== payment) return false;
     if (paymentStatus !== "All" && s.paymentStatus !== paymentStatus) return false;
-    if (
-      appliedSearch &&
-      !(s.batchCode || "").toLowerCase().includes(appliedSearch.toLowerCase()) &&
-      !(s.customer || "").toLowerCase().includes(appliedSearch.toLowerCase()) &&
-      !(s.device || "").toLowerCase().includes(appliedSearch.toLowerCase())
-    )
-      return false;
+    if (!searchMatches(appliedSearch, s.batchCode, s.customer, s.device, s.brand)) return false;
     if (dateRange?.from || dateRange?.to) {
       const saleDate = new Date(s.date);
       if (dateRange.from && saleDate < dateRange.from) return false;

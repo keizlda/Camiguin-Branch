@@ -19,6 +19,7 @@ import ReturnDetailsModal from "../../components/aftersales/ReturnDetailsModal";
 import ReplaceReturnModal from "../../components/aftersales/ReplaceReturnModal";
 import DateRangePicker from "../../components/common/DateRangePicker";
 import { useToast } from "../../hooks/useToast";
+import { searchMatches } from "../../utils/search";
 
 const statusStyles = {
   Replaced: "bg-green-100 text-green-600",
@@ -62,13 +63,7 @@ function CustomerReturns() {
     const returnDate = new Date(r.returnDate);
     if (from && returnDate < from) return false;
     if (to && returnDate > to) return false;
-    if (
-      appliedSearch &&
-      !(r.batchCode || "").toLowerCase().includes(appliedSearch.toLowerCase()) &&
-      !(r.customer || "").toLowerCase().includes(appliedSearch.toLowerCase()) &&
-      !(r.device || "").toLowerCase().includes(appliedSearch.toLowerCase())
-    )
-      return false;
+    if (!searchMatches(appliedSearch, r.batchCode, r.customer, r.device, r.brand)) return false;
     return true;
   });
 

@@ -89,7 +89,7 @@ export async function deleteDevice(id) {
 export async function getAvailableDevicesForReplacement(deviceName) {
   const { data, error } = await supabase
     .from("devices")
-    .select("id, batch_code, device_name, storage, color")
+    .select("id, batch_code, device_name, storage, color, brand")
     .eq("status", "Available")
     .eq("device_name", deviceName);
 
@@ -101,6 +101,7 @@ export async function getAvailableDevicesForReplacement(deviceName) {
     device: d.device_name,
     storage: d.storage,
     color: d.color,
+    brand: d.brand,
   }));
 }
 
@@ -206,7 +207,7 @@ export async function getSupplierDefectiveRecords() {
     action_taken,
     date_detected,
     device_id,
-    devices:device_id ( batch_code, device_name, storage, color ),
+    devices:device_id ( batch_code, device_name, storage, color, brand ),
     suppliers:supplier_id ( name )
   `);
 
@@ -222,6 +223,7 @@ export async function getSupplierDefectiveRecords() {
       device: r.devices?.device_name,
       storage: r.devices?.storage,
       color: r.devices?.color,
+      brand: r.devices?.brand,
       supplier: r.suppliers?.name,
       dateDetected: formatDate(r.date_detected),
       dateDetectedRaw: r.date_detected,

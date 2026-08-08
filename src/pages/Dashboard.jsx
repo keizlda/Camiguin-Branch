@@ -13,6 +13,7 @@ import { getAllDevices, getLowStockItems } from "../services/inventoryService";
 import { getSalesHistory } from "../services/salesService";
 import { getDeviceCategories } from "../services/referenceService";
 import { isAccessoryLikeCategory } from "../data/referenceData";
+import { searchMatches } from "../utils/search";
 
 const categoryColors = {
   iPhones: "#3b82f6",
@@ -43,12 +44,7 @@ function Dashboard() {
   const [selectedDevice, setSelectedDevice] = useState(null);
 
   const searchResults = deviceSearch.trim()
-    ? allDevices
-        .filter((d) => {
-          const q = deviceSearch.toLowerCase();
-          return d.batchCode?.toLowerCase().includes(q) || d.device?.toLowerCase().includes(q);
-        })
-        .slice(0, 8)
+    ? allDevices.filter((d) => searchMatches(deviceSearch, d.batchCode, d.device, d.brand)).slice(0, 8)
     : [];
 
   const handleSelectDevice = (device) => {

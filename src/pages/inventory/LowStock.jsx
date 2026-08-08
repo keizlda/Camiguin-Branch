@@ -6,6 +6,7 @@ import { useServiceData } from "../../hooks/useServiceData";
 import { useIsAdmin } from "../../hooks/useIsAdmin";
 import { useToast } from "../../hooks/useToast";
 import ReorderSettingsModal from "../../components/inventory/ReorderSettingsModal";
+import { searchMatches } from "../../utils/search";
 
 const blankFilters = { category: "All", search: "" };
 
@@ -44,8 +45,8 @@ function LowStock() {
   const records = useMemo(() => {
     const f = appliedFilters;
     return lowStockItems.filter((r) => {
-      const matchesSearch = !f.search || r.device.toLowerCase().includes(f.search.toLowerCase());
-      return matchesSearch && (f.category === "All" || r.category === f.category);
+      const matchesTextSearch = searchMatches(f.search, r.device);
+      return matchesTextSearch && (f.category === "All" || r.category === f.category);
     });
   }, [appliedFilters, lowStockItems]);
 

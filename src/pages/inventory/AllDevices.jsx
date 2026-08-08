@@ -21,6 +21,7 @@ import {
   deleteBulkOrderShell,
 } from "../../services/bulkOrderShellsService";
 import { isAccessoryLikeCategory } from "../../data/referenceData";
+import { searchMatches } from "../../utils/search";
 import { useToast } from "../../hooks/useToast";
 
 function AllDevices() {
@@ -207,12 +208,9 @@ function AllDevices() {
   const filtered = useMemo(() => {
     return allDevices.filter((d) => {
       const f = appliedFilters;
-      const matchesSearch =
-        !f.search ||
-        d.batchCode.toLowerCase().includes(f.search.toLowerCase()) ||
-        d.device.toLowerCase().includes(f.search.toLowerCase());
+      const matchesTextSearch = searchMatches(f.search, d.batchCode, d.device, d.brand);
       return (
-        matchesSearch &&
+        matchesTextSearch &&
         (f.category === "All" || d.category === f.category) &&
         (f.status === "All" || d.status === f.status) &&
         (f.storage === "All" || d.storage === f.storage) &&

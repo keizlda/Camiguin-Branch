@@ -7,6 +7,7 @@ import NewReservationModal from "../../components/inventory/NewReservationModal"
 import ReservationDetailsModal from "../../components/inventory/ReservationDetailsModal";
 import ConvertToSaleModal from "../../components/inventory/ConvertToSaleModal";
 import { useToast } from "../../hooks/useToast";
+import { searchMatches } from "../../utils/search";
 
 const statusStyles = {
   Active: "bg-green-100 text-green-600",
@@ -99,12 +100,9 @@ function Reserved() {
     const filterDate = f.date ? new Date(`${f.date}T00:00:00`) : null;
     return reservedDevices.filter((r) => {
       const reservedDate = new Date(r.dateReserved);
-      const matchesSearch =
-        !f.search ||
-        (r.batchCode || "").toLowerCase().includes(f.search.toLowerCase()) ||
-        (r.device || "").toLowerCase().includes(f.search.toLowerCase());
+      const matchesTextSearch = searchMatches(f.search, r.batchCode, r.device, r.brand);
       return (
-        matchesSearch &&
+        matchesTextSearch &&
         (f.kind === "All" || getDeviceKind(r.device) === f.kind) &&
         (!filterDate || reservedDate.getTime() === filterDate.getTime())
       );

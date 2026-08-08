@@ -8,6 +8,7 @@ import { getSuppliers } from "../../services/referenceService";
 import UpdateDefectiveStatusModal from "../../components/inventory/UpdateDefectiveStatusModal";
 import EditDefectiveRecordModal from "../../components/inventory/EditDefectiveRecordModal";
 import DateRangePicker from "../../components/common/DateRangePicker";
+import { searchMatches } from "../../utils/search";
 
 const statusStyles = {
   "Pending Return": "bg-orange-100 text-orange-600",
@@ -67,12 +68,9 @@ function SupplierDefective() {
     const to = f.dateRange?.to || null;
     return supplierDefectiveRecords.filter((r) => {
       const detectedDate = new Date(r.dateDetected);
-      const matchesSearch =
-        !f.search ||
-        (r.batchCode || "").toLowerCase().includes(f.search.toLowerCase()) ||
-        (r.device || "").toLowerCase().includes(f.search.toLowerCase());
+      const matchesTextSearch = searchMatches(f.search, r.batchCode, r.device, r.brand);
       return (
-        matchesSearch &&
+        matchesTextSearch &&
         (f.supplier === "All" || r.supplier === f.supplier) &&
         (f.status === "All" || r.status === f.status) &&
         (!from || detectedDate >= from) &&

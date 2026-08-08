@@ -3,6 +3,7 @@ import { X, AlertTriangle } from "lucide-react";
 import { getAvailableDevicesForReplacement, getAvailableDevicesForSale } from "../../services/inventoryService";
 import { replaceReturn } from "../../services/returnsService";
 import { useToast } from "../../hooks/useToast";
+import { searchMatches } from "../../utils/search";
 
 const OTHER_UNIT = "__other__";
 
@@ -40,9 +41,7 @@ function ReplaceReturnModal({ record, onClose, onReplaced }) {
   }, [replacementId, otherDevices.length, showToast]);
 
   const filteredOtherDevices = useMemo(() => {
-    if (!otherSearch) return otherDevices;
-    const q = otherSearch.toLowerCase();
-    return otherDevices.filter((d) => d.product.toLowerCase().includes(q) || d.batchCode.toLowerCase().includes(q));
+    return otherDevices.filter((d) => searchMatches(otherSearch, d.product, d.batchCode, d.brand));
   }, [otherDevices, otherSearch]);
 
   const selectedOtherDevice = otherDevices.find((d) => d.id === otherDeviceId);
