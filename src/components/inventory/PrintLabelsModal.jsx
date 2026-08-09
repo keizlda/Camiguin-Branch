@@ -12,7 +12,7 @@ import BarcodeSheetTable from "../common/BarcodeSheetTable";
 // plain bondpaper instead.
 function PrintLabelsModal({ devices, onClose }) {
   const handlePrint = () => window.print();
-  const labels = dedupeByBatchCode(devices);
+  const labels = dedupeByBatchCode(devices).sort((a, b) => (a.device || "").localeCompare(b.device || ""));
   const pageCount = Math.ceil(labels.length / 5);
 
   return (
