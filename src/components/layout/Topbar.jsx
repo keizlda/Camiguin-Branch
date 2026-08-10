@@ -1,7 +1,7 @@
-import { Menu, Calendar, User } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { Menu, Calendar, User, LogOut } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useServiceData } from "../../hooks/useServiceData";
-import { getCurrentProfile } from "../../services/authService";
+import { getCurrentProfile, signOut } from "../../services/authService";
 
 const roleLabels = {
   admin: "Administrator",
@@ -25,6 +25,7 @@ const PAGE_TITLES = {
 
 function Topbar({ onMenuClick }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const pageTitle = PAGE_TITLES[location.pathname] || "Dashboard";
   const profile = useServiceData(getCurrentProfile, null);
 
@@ -33,6 +34,18 @@ function Topbar({ onMenuClick }) {
     month: "long",
     day: "numeric",
   });
+
+  // Also lives on Sidebar's own bottom button — that one's unreachable
+  // whenever the sidebar itself is (a narrow/tablet viewport that's
+  // stuck in its collapsed drawer state, or hasn't opened it yet), so
+  // logging out shouldn't depend on the drawer opening correctly.
+  const handleLogout = async () => {
+    try {
+      await signOut();
+    } finally {
+      navigate("/");
+    }
+  };
 
   return (
     <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 fixed top-0 left-0 md:left-64 right-0 z-20">
@@ -58,6 +71,15 @@ function Topbar({ onMenuClick }) {
             <p className="text-gray-400 text-xs">{roleLabels[profile?.role] || "Staff"}</p>
           </div>
         </div>
+
+        <button
+          onClick={handleLogout}
+          title="Logout"
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-red-600 px-2 py-1.5 rounded-lg hover:bg-red-50 flex-shrink-0"
+        >
+          <LogOut size={18} />
+          <span className="hidden sm:inline">Logout</span>
+        </button>
       </div>
     </header>
   );
