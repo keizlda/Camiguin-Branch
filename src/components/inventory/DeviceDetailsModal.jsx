@@ -4,6 +4,7 @@ import { getDeviceSaleInfo } from "../../services/salesService";
 import { formatDate, formatTime } from "../../utils/datetime";
 import { isAccessoryLikeCategory } from "../../data/referenceData";
 import { useToast } from "../../hooks/useToast";
+import { useIsAdmin } from "../../hooks/useIsAdmin";
 
 const statusStyles = {
   Sold: "bg-blue-100 text-blue-600",
@@ -42,6 +43,7 @@ function Row({ label, children }) {
 // caller showing exactly what it always has.
 function DeviceDetailsModal({ device, paymentMethod, downPayment, balance, soldPrice, onClose }) {
   const showToast = useToast();
+  const isAdmin = useIsAdmin();
   const [saleInfo, setSaleInfo] = useState(undefined); // undefined = loading, null = never sold
 
   useEffect(() => {
@@ -84,7 +86,7 @@ function DeviceDetailsModal({ device, paymentMethod, downPayment, balance, soldP
           ) : (
             <Row label="Selling Price">₱{Number(device.price || 0).toLocaleString()}</Row>
           )}
-          {device.purchasePrice != null && (
+          {isAdmin && device.purchasePrice != null && (
             <Row label="Purchase Price">₱{Number(device.purchasePrice).toLocaleString()}</Row>
           )}
           <Row label="Status">

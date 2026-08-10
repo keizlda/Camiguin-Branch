@@ -416,14 +416,14 @@ function Reports() {
                   <th className="px-3 py-2.5 font-medium">Customer</th>
                   <th className="px-3 py-2.5 font-medium">Unit Sold</th>
                   <th className="px-3 py-2.5 font-medium text-right">Total Amount</th>
-                  <th className="px-3 py-2.5 font-medium text-right">Profit</th>
+                  {isAdmin && <th className="px-3 py-2.5 font-medium text-right">Profit</th>}
                   <th className="px-3 py-2.5 font-medium rounded-r-lg">Payment Method</th>
                 </tr>
               </thead>
               <tbody>
                 {displayedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-gray-400">
+                    <td colSpan={isAdmin ? 8 : 7} className="py-8 text-center text-gray-400">
                       No transactions found for the selected date range.
                     </td>
                   </tr>
@@ -446,18 +446,20 @@ function Reports() {
                     {isPendingBulk(row) ? (
                       <>
                         <td className="px-3 py-3 text-right text-orange-500 italic">Pending</td>
-                        <td className="px-3 py-3 text-right text-orange-500 italic">Pending</td>
+                        {isAdmin && <td className="px-3 py-3 text-right text-orange-500 italic">Pending</td>}
                       </>
                     ) : (
                       <>
                         <td className="px-3 py-3 text-gray-800 text-right">{peso(row.amount)}</td>
-                        <td
-                          className={`px-3 py-3 text-right font-medium ${
-                            row.netProfit == null ? "text-gray-400" : row.netProfit < 0 ? "text-red-500" : "text-green-600"
-                          }`}
-                        >
-                          {row.netProfit != null ? peso(row.netProfit) : "—"}
-                        </td>
+                        {isAdmin && (
+                          <td
+                            className={`px-3 py-3 text-right font-medium ${
+                              row.netProfit == null ? "text-gray-400" : row.netProfit < 0 ? "text-red-500" : "text-green-600"
+                            }`}
+                          >
+                            {row.netProfit != null ? peso(row.netProfit) : "—"}
+                          </td>
+                        )}
                       </>
                     )}
                     <td className="px-3 py-3 text-gray-700">{row.payment}</td>
@@ -471,9 +473,11 @@ function Reports() {
                   </td>
                   <td className="px-3 py-3 text-center">{displayedTotals.totalItems}</td>
                   <td className="px-3 py-3 text-right">{peso(displayedTotals.totalSales)}</td>
-                  <td className={`px-3 py-3 text-right ${displayedTotals.totalProfit < 0 ? "text-red-500" : "text-green-600"}`}>
-                    {peso(displayedTotals.totalProfit)}
-                  </td>
+                  {isAdmin && (
+                    <td className={`px-3 py-3 text-right ${displayedTotals.totalProfit < 0 ? "text-red-500" : "text-green-600"}`}>
+                      {peso(displayedTotals.totalProfit)}
+                    </td>
+                  )}
                   <td className="px-3 py-3 rounded-r-lg"></td>
                 </tr>
               </tfoot>
@@ -607,38 +611,40 @@ function Reports() {
             {/* Vertical breakdown, below the form — same layout as Financial's:
                 a fixed-width column keeps every value flush regardless of
                 label length. Expenses/Cargo open the same breakdown modal. */}
-            <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end print:hidden">
-              <div className="w-full max-w-xs space-y-1">
-                <div className="flex justify-between text-sm text-gray-600 px-2 py-1.5">
-                  <span>Store Profit</span>
-                  <span className="font-medium tabular-nums">{peso(totals.totalProfit)}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setExpenseModalCategory("General")}
-                  className="flex justify-between w-full text-sm text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-50"
-                >
-                  <span>Expenses</span>
-                  <span className="font-medium tabular-nums">-{peso(categoryTotals.General)}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setExpenseModalCategory("Cargo")}
-                  className="flex justify-between w-full text-sm text-amber-600 px-2 py-1.5 rounded-lg hover:bg-amber-50"
-                >
-                  <span>Cargo</span>
-                  <span className="font-medium tabular-nums">-{peso(categoryTotals.Cargo)}</span>
-                </button>
-                <div
-                  className={`flex justify-between text-base font-bold px-2 py-2 mt-1 border-t border-gray-100 ${
-                    netProfit < 0 ? "text-red-500" : "text-gray-800"
-                  }`}
-                >
-                  <span>Net Profit</span>
-                  <span className="tabular-nums">{peso(netProfit)}</span>
+            {isAdmin && (
+              <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end print:hidden">
+                <div className="w-full max-w-xs space-y-1">
+                  <div className="flex justify-between text-sm text-gray-600 px-2 py-1.5">
+                    <span>Store Profit</span>
+                    <span className="font-medium tabular-nums">{peso(totals.totalProfit)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setExpenseModalCategory("General")}
+                    className="flex justify-between w-full text-sm text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-50"
+                  >
+                    <span>Expenses</span>
+                    <span className="font-medium tabular-nums">-{peso(categoryTotals.General)}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setExpenseModalCategory("Cargo")}
+                    className="flex justify-between w-full text-sm text-amber-600 px-2 py-1.5 rounded-lg hover:bg-amber-50"
+                  >
+                    <span>Cargo</span>
+                    <span className="font-medium tabular-nums">-{peso(categoryTotals.Cargo)}</span>
+                  </button>
+                  <div
+                    className={`flex justify-between text-base font-bold px-2 py-2 mt-1 border-t border-gray-100 ${
+                      netProfit < 0 ? "text-red-500" : "text-gray-800"
+                    }`}
+                  >
+                    <span>Net Profit</span>
+                    <span className="tabular-nums">{peso(netProfit)}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Search, Filter, Plus, X, ChevronLeft, ChevronRight, ShoppingCart, AlertTriangle, Wallet, CreditCard, Smartphone, Landmark, FileCheck, CalendarClock, Building2, Tablet, Laptop, Watch, Headphones, Wrench, PackagePlus, Repeat, Camera, Printer } from "lucide-react";
 import { useServiceData } from "../../hooks/useServiceData";
+import { useIsAdmin } from "../../hooks/useIsAdmin";
 import { processSale } from "../../services/salesService";
 import { getAvailableDevicesForSale, deleteDevice } from "../../services/inventoryService";
 import { getPosCategories } from "../../services/referenceService";
@@ -62,6 +63,7 @@ function NewSale() {
   const showToast = useToast();
   const posCategories = useServiceData(getPosCategories, []);
   const profile = useServiceData(getCurrentProfile, null);
+  const isAdmin = useIsAdmin();
 
   const [availableDevices, setAvailableDevices] = useState([]);
   const loadAvailableDevices = useCallback(() => {
@@ -643,10 +645,12 @@ function NewSale() {
                       <p className="text-xs text-gray-400">
                         {[c.brand, c.storage, c.batchCode].filter(Boolean).join(" · ")}
                       </p>
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        Capital: ₱{(Number(c.purchasePrice) || 0).toLocaleString()} · Base: ₱
-                        {(Number(c.price) || 0).toLocaleString()}
-                      </p>
+                      {isAdmin && (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          Capital: ₱{(Number(c.purchasePrice) || 0).toLocaleString()} · Base: ₱
+                          {(Number(c.price) || 0).toLocaleString()}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
@@ -671,18 +675,22 @@ function NewSale() {
         )}
 
         <div className="space-y-2 text-sm border-t border-gray-100 pt-3">
-          <div className="flex justify-between text-gray-500">
-            <span>Total Capital ({cart.length} item{cart.length === 1 ? "" : "s"})</span>
-            <span>₱{totalCapital.toLocaleString()}</span>
-          </div>
+          {isAdmin && (
+            <div className="flex justify-between text-gray-500">
+              <span>Total Capital ({cart.length} item{cart.length === 1 ? "" : "s"})</span>
+              <span>₱{totalCapital.toLocaleString()}</span>
+            </div>
+          )}
           <div className="flex justify-between font-semibold text-gray-800 pt-2 border-t border-gray-100 text-base">
             <span>Total (Actual Price Sold)</span>
             <span>₱{total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
           </div>
-          <div className={`flex justify-between font-medium ${profit < 0 ? "text-red-500" : "text-green-600"}`}>
-            <span>Profit</span>
-            <span>₱{profit.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-          </div>
+          {isAdmin && (
+            <div className={`flex justify-between font-medium ${profit < 0 ? "text-red-500" : "text-green-600"}`}>
+              <span>Profit</span>
+              <span>₱{profit.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-gray-100">

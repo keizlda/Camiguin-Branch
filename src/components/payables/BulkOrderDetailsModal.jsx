@@ -1,13 +1,15 @@
 import { X } from "lucide-react";
+import { useIsAdmin } from "../../hooks/useIsAdmin";
 
 const peso = (n) => "₱" + Number(n || 0).toLocaleString("en-PH", { maximumFractionDigits: 2 });
 
-// Always shows real amounts/profit regardless of payment status — unlike
-// Reports (which hides a pending bulk order's totals until it's paid), this
-// is the accounts-receivable detail view staff use to verify what's owed
-// before deciding to mark it paid, so redacting numbers here would defeat
-// the point.
+// Always shows real amounts regardless of payment status — unlike Reports
+// (which hides a pending bulk order's totals until it's paid), this is the
+// accounts-receivable detail view staff use to verify what's owed before
+// deciding to mark it paid, so redacting the Amount column here would
+// defeat the point. Profit stays admin-only like everywhere else, though.
 function BulkOrderDetailsModal({ order, onClose }) {
+  const isAdmin = useIsAdmin();
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl">
@@ -30,7 +32,7 @@ function BulkOrderDetailsModal({ order, onClose }) {
                 <th className="pb-2 font-medium">Batch Code</th>
                 <th className="pb-2 font-medium">Unit Sold</th>
                 <th className="pb-2 font-medium text-right">Amount</th>
-                <th className="pb-2 font-medium text-right">Profit</th>
+                {isAdmin && <th className="pb-2 font-medium text-right">Profit</th>}
               </tr>
             </thead>
             <tbody>
@@ -39,13 +41,15 @@ function BulkOrderDetailsModal({ order, onClose }) {
                   <td className="py-2.5 text-gray-700 whitespace-nowrap">{item.batchCode}</td>
                   <td className="py-2.5 text-gray-800 font-medium">{item.unit}</td>
                   <td className="py-2.5 text-right text-gray-800">{peso(item.price)}</td>
-                  <td
-                    className={`py-2.5 text-right font-medium ${
-                      item.netProfit == null ? "text-gray-400" : item.netProfit < 0 ? "text-red-500" : "text-green-600"
-                    }`}
-                  >
-                    {item.netProfit != null ? peso(item.netProfit) : "—"}
-                  </td>
+                  {isAdmin && (
+                    <td
+                      className={`py-2.5 text-right font-medium ${
+                        item.netProfit == null ? "text-gray-400" : item.netProfit < 0 ? "text-red-500" : "text-green-600"
+                      }`}
+                    >
+                      {item.netProfit != null ? peso(item.netProfit) : "—"}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -53,9 +57,11 @@ function BulkOrderDetailsModal({ order, onClose }) {
               <tr className="font-bold text-gray-800 border-t border-gray-100">
                 <td className="pt-3" colSpan={2}>TOTAL</td>
                 <td className="pt-3 text-right">{peso(order.total)}</td>
-                <td className={`pt-3 text-right ${order.totalProfit < 0 ? "text-red-500" : "text-green-600"}`}>
-                  {peso(order.totalProfit)}
-                </td>
+                {isAdmin && (
+                  <td className={`pt-3 text-right ${order.totalProfit < 0 ? "text-red-500" : "text-green-600"}`}>
+                    {peso(order.totalProfit)}
+                  </td>
+                )}
               </tr>
             </tfoot>
           </table>
