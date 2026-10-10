@@ -1289,7 +1289,10 @@ insert into public.categories (name, db_value, brand, prefix, storages, is_acces
   ('Honor', 'Honor', 'Honor', 'HN', ARRAY['6GB+128GB','8GB+128GB','8GB+256GB','8GB+512GB'], false),
   ('Itel', 'Itel', 'Itel', 'IT', ARRAY['N/A','2GB+64GB','3GB+64GB','4GB+64GB','4GB+128GB'], false),
   ('POCO', 'POCO', 'POCO', 'PC', ARRAY['3GB+64GB','4GB+128GB','6GB+128GB','8GB+256GB','8GB+512GB','12GB+512GB'], false),
-  ('OPPO', 'OPPO', 'OPPO', 'OP', ARRAY['4GB+64GB','4GB+128GB','6GB+128GB','8GB+128GB','4GB+256GB','8GB+256GB','12GB+256GB','12GB+512GB'], false)
+  ('OPPO', 'OPPO', 'OPPO', 'OP', ARRAY['4GB+64GB','4GB+128GB','6GB+128GB','8GB+128GB','4GB+256GB','8GB+256GB','12GB+256GB','12GB+512GB'], false),
+  ('Acer', 'Acer', 'Acer', 'ACR', ARRAY['128GB','256GB','512GB','1TB'], false),
+  ('ZTE', 'ZTE', 'ZTE', 'ZT', ARRAY['3GB+64GB','4GB+64GB','4GB+128GB','6GB+128GB'], false),
+  ('Nubia', 'Nubia', 'Nubia', 'NU', ARRAY['8GB+128GB','8GB+256GB','12GB+256GB','12GB+512GB'], false)
 on conflict (name) do update set storages = excluded.storages;
 
 -- ============================================================
