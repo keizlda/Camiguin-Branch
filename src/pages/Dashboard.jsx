@@ -172,7 +172,7 @@ function Dashboard() {
       {/* Charts + alerts row — Sales This Month is financial info, admin-only */}
       <div className={`grid grid-cols-1 gap-4 ${isAdmin ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
         {isAdmin && <SalesChart />}
-        <InventoryDonut data={inventoryByCategory} />
+        <InventoryDonut data={inventoryByCategory} total={totalDevices} />
         <LowStockAlerts />
       </div>
 

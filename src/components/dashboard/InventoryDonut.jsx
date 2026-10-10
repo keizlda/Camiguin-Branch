@@ -1,8 +1,10 @@
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
-function InventoryDonut({ data }) {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-
+// total comes from the caller instead of summing `data` here — a device
+// whose category isn't an active row in the categories table (deactivated
+// or renamed in Manage Catalog after the device was added) has no slice in
+// `data`, so a locally-derived sum silently undercounts real stock.
+function InventoryDonut({ data, total }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 flex-1">
       <p className="text-sm text-gray-500 mb-4">Inventory by Category</p>
