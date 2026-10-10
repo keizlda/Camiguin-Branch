@@ -69,15 +69,15 @@ function Dashboard() {
     { label: "Returned", value: deviceOnlyUnits.filter((d) => d.status === "Returned" || d.status === "Customer Returned").length, unit: "Units", color: "purple" },
   ];
 
-  // Current on-hand stock, not all-time device volume — a Sold unit isn't
-  // sitting in inventory anymore. Every device status except Sold counts
-  // (Available/Reserved/Supplier Defective/Customer Returned/Returned),
-  // matching the same "still tied up in the business" convention Financial
-  // uses (UNSOLD_STATUSES there). Accessories/Repair Parts are excluded —
-  // a bulk restock (dozens of identical units sharing one batch code)
-  // would otherwise dominate this breakdown instead of reflecting how
-  // device inventory is actually split across brands/categories.
-  const inStockDevices = allDevices.filter((d) => d.status !== "Sold" && !isAccessoryLikeCategory(d.category));
+  // Currently sellable stock only (status === Available) — Reserved,
+  // Supplier Defective, Customer Returned, and Returned units aren't on the
+  // shelf for a customer to buy right now, so they're excluded here even
+  // though Financial's UNSOLD_STATUSES convention counts them as "still tied
+  // up in the business" for a different purpose. Accessories/Repair Parts
+  // are excluded too — a bulk restock (dozens of identical units sharing
+  // one batch code) would otherwise dominate this breakdown instead of
+  // reflecting how device inventory is actually split across brands/categories.
+  const inStockDevices = allDevices.filter((d) => d.status === "Available" && !isAccessoryLikeCategory(d.category));
   const totalDevices = inStockDevices.length;
   const inventoryByCategory = deviceCategories
     .filter((cat) => !isAccessoryLikeCategory(cat))
