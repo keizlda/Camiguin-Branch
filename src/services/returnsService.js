@@ -1,8 +1,12 @@
-import { supabase } from "../lib/supabaseClient";
+import { supabase, fetchAllRows } from "../lib/supabaseClient";
 import { formatDate, formatTime } from "../utils/datetime";
 
 export async function getCustomerReturns() {
-  const { data, error } = await supabase.from("customer_returns").select(`
+  const allRows = await fetchAllRows((from, to) =>
+    supabase
+      .from("customer_returns")
+      .select(
+        `
     id,
     reason,
     status,
@@ -13,12 +17,12 @@ export async function getCustomerReturns() {
       devices:device_id ( batch_code, device_name, category, storage, brand )
     ),
     replacement:replacement_device_id ( batch_code, device_name )
-  `);
+  `
+      )
+      .range(from, to)
+  );
 
-  if (error) throw error;
-
-  return data
-    .slice()
+  return allRows
     .sort((a, b) => new Date(b.returned_at) - new Date(a.returned_at))
     .map((r) => ({
       id: r.id,

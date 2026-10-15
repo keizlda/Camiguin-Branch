@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabaseClient";
+import { supabase, fetchAllRows } from "../lib/supabaseClient";
 import { formatDate, formatTime } from "../utils/datetime";
 import { expireOverdueReservations } from "./reservationsService";
 
@@ -26,28 +26,12 @@ function mapDevice(d) {
   };
 }
 
-// Supabase's API caps rows per request — a plain .select() with no range
-// silently truncates once the devices table grows past that cap (hit at
-// 1839 real rows vs. 419 returned, which then propagates into every page
-// that lists devices: Dashboard, All Devices, New Sale's search, Low
-// Stock). Paginates in batches well under the observed cutoff so growth
-// past any single request's limit can't silently drop rows again.
-const FETCH_PAGE_SIZE = 200;
-
 export async function getAllDevices() {
   await expireOverdueReservations();
 
-  const allRows = [];
-  for (let from = 0; ; from += FETCH_PAGE_SIZE) {
-    const { data, error } = await supabase
-      .from("devices")
-      .select(DEVICE_SELECT)
-      .range(from, from + FETCH_PAGE_SIZE - 1);
-
-    if (error) throw error;
-    allRows.push(...data);
-    if (data.length < FETCH_PAGE_SIZE) break;
-  }
+  const allRows = await fetchAllRows((from, to) =>
+    supabase.from("devices").select(DEVICE_SELECT).range(from, to)
+  );
 
   return allRows
     .sort((a, b) => new Date(b.date_added) - new Date(a.date_added))
@@ -216,7 +200,11 @@ export async function getLowStockItems() {
 }
 
 export async function getSupplierDefectiveRecords() {
-  const { data, error } = await supabase.from("supplier_defective_records").select(`
+  const allRows = await fetchAllRows((from, to) =>
+    supabase
+      .from("supplier_defective_records")
+      .select(
+        `
     id,
     issue_description,
     status,
@@ -225,12 +213,12 @@ export async function getSupplierDefectiveRecords() {
     device_id,
     devices:device_id ( batch_code, device_name, storage, brand ),
     suppliers:supplier_id ( name )
-  `);
+  `
+      )
+      .range(from, to)
+  );
 
-  if (error) throw error;
-
-  return data
-    .slice()
+  return allRows
     .sort((a, b) => new Date(b.date_detected) - new Date(a.date_detected))
     .map((r) => ({
       id: r.id,

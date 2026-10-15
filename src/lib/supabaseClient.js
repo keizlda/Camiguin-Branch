@@ -46,3 +46,23 @@ const authStorage = {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: { storage: authStorage },
 });
+
+const FETCH_PAGE_SIZE = 200;
+
+// Supabase/PostgREST caps rows per request — a plain .select() with no
+// range silently truncates once a table grows past that cap (first seen on
+// devices: 1839 real rows, only 419 returned, which then propagated into
+// every page that listed them). Pages through in batches well under the
+// observed cutoff so growth past any single request's limit can't quietly
+// drop rows again. `fetchPage(from, to)` should run the query for that row
+// range (via .range(from, to)) and return the usual Supabase {data, error}.
+export async function fetchAllRows(fetchPage) {
+  const allRows = [];
+  for (let from = 0; ; from += FETCH_PAGE_SIZE) {
+    const { data, error } = await fetchPage(from, from + FETCH_PAGE_SIZE - 1);
+    if (error) throw error;
+    allRows.push(...data);
+    if (data.length < FETCH_PAGE_SIZE) break;
+  }
+  return allRows;
+}

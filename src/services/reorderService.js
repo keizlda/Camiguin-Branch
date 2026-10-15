@@ -1,4 +1,4 @@
-import { supabase } from "../lib/supabaseClient";
+import { supabase, fetchAllRows } from "../lib/supabaseClient";
 import { getProductCatalog } from "./referenceService";
 
 export async function getReorderSettings() {
@@ -21,25 +21,12 @@ export async function getReorderSettings() {
 // Device catalog (so it's not limited to models already in stock) plus any
 // distinct device names actually in inventory (covers custom "Other" models
 // staff typed in manually that aren't in the catalog).
-// Same unbounded-fetch risk as getAllDevices in inventoryService.js — a
-// plain .select() on the full devices table silently truncates once it
-// outgrows Supabase's per-request row cap, so this paginates too.
-async function getAllDeviceNames() {
-  const names = [];
-  for (let from = 0; ; from += 200) {
-    const { data, error } = await supabase
-      .from("devices")
-      .select("device_name")
-      .range(from, from + 199);
-    if (error) throw error;
-    names.push(...data.map((d) => d.device_name));
-    if (data.length < 200) break;
-  }
-  return names;
-}
-
 export async function getDeviceModelNames() {
-  const [catalog, inventoryModels] = await Promise.all([getProductCatalog(), getAllDeviceNames()]);
+  const [catalog, deviceRows] = await Promise.all([
+    getProductCatalog(),
+    fetchAllRows((from, to) => supabase.from("devices").select("device_name").range(from, to)),
+  ]);
+  const inventoryModels = deviceRows.map((d) => d.device_name);
 
   const catalogModels = Object.values(catalog).flatMap((c) => c.models);
   return [...new Set([...catalogModels, ...inventoryModels])].sort();

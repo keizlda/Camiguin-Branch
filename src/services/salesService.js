@@ -1,8 +1,12 @@
-import { supabase } from "../lib/supabaseClient";
+import { supabase, fetchAllRows } from "../lib/supabaseClient";
 import { formatDate, formatTime } from "../utils/datetime";
 
 export async function getSalesHistory() {
-  const { data, error } = await supabase.from("sale_items").select(`
+  const allRows = await fetchAllRows((from, to) =>
+    supabase
+      .from("sale_items")
+      .select(
+        `
     id,
     price_at_sale,
     quantity,
@@ -34,12 +38,12 @@ export async function getSalesHistory() {
       suppliers:supplier_id ( name )
     ),
     customer_returns ( status )
-  `);
+  `
+      )
+      .range(from, to)
+  );
 
-  if (error) throw error;
-
-  return data
-    .slice()
+  return allRows
     .sort((a, b) => new Date(b.sales?.sold_at) - new Date(a.sales?.sold_at))
     .map((item) => {
       const total = item.price_at_sale * item.quantity;
