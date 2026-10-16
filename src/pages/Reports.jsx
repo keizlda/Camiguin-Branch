@@ -499,11 +499,23 @@ function Reports() {
                         )}
                       </>
                     )}
-                    <td className="px-3 py-3 text-gray-700">{row.payment}</td>
+                    <td className="px-3 py-3 text-gray-700">
+                      {row.payment}
+                      {row.downPayment != null && (
+                        <div className="text-xs text-emerald-600 font-medium">DP {peso(row.downPayment)}</div>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
+                <tr className="text-emerald-700 text-xs">
+                  <td className="px-3 py-2" colSpan={4}>CASH ON HAND</td>
+                  <td className="px-3 py-2"></td>
+                  <td className="px-3 py-2 text-right font-semibold">{peso(cashOnHand)}</td>
+                  {isAdmin && <td className="px-3 py-2"></td>}
+                  <td className="px-3 py-2"></td>
+                </tr>
                 <tr className="bg-gray-50 font-bold text-gray-800">
                   <td className="px-3 py-3 rounded-l-lg" colSpan={4}>
                     {viewMode === "cash" ? "TOTAL (CASH)" : "TOTAL"}
